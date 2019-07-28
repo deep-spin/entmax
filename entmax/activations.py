@@ -11,7 +11,7 @@ By Ben Peters and Vlad Niculae
 import torch
 from torch.autograd import Function
 import torch.nn as nn
-from .root_finding import tsallis_bisect, sparsemax_bisect
+from entmax.root_finding import tsallis_bisect, sparsemax_bisect
 
 
 def _make_ix_like(input, dim=0):

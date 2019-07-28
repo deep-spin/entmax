@@ -3,7 +3,7 @@ import torch
 from torch.autograd import gradcheck, grad
 from functools import partial
 
-from losses import (
+from entmax.losses import (
     SparsemaxLoss,
     SparsemaxTopKLoss,
     Tsallis15Loss,

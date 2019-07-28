@@ -3,7 +3,7 @@ import torch
 from torch.autograd import gradcheck
 
 
-from activations import (
+from entmax.activations import (
     _threshold_and_support,
     _threshold_and_support_topk,
     _tsallis_threshold_and_support,
@@ -12,7 +12,7 @@ from activations import (
     Tsallis15TopK,
 )
 
-from losses import (
+from entmax.losses import (
     SparsemaxLoss,
     SparsemaxTopKLoss,
     Tsallis15Loss,

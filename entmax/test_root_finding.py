@@ -3,9 +3,9 @@ import pytest
 import torch
 from torch.autograd import gradcheck
 
-from root_finding import sparsemax_bisect, tsallis_bisect
+from entmax.root_finding import sparsemax_bisect, tsallis_bisect
 
-from activations import sparsemax, entmax15
+from entmax.activations import sparsemax, entmax15
 
 
 def test_sparsemax():

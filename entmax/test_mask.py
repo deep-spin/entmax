@@ -1,9 +1,11 @@
 import torch
 import pytest
 
-from activations import Sparsemax, Tsallis15, SparsemaxTopK, Tsallis15TopK
+from entmax.activations import (
+    Sparsemax, Tsallis15, SparsemaxTopK, Tsallis15TopK
+)
 
-from root_finding import sparsemax_bisect, tsallis_bisect
+from entmax.root_finding import sparsemax_bisect, tsallis_bisect
 
 funcs = [
     Sparsemax(dim=1),

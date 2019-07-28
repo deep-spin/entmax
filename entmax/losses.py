@@ -1,13 +1,14 @@
 import torch
+import torch.nn as nn
 from torch.autograd import Function
 
-from .activations import (
+from entmax.activations import (
     sparsemax,
     sparsemax_topk,
     entmax15,
     entmax15_topk
 )
-from .root_finding import tsallis_bisect, sparsemax_bisect
+from entmax.root_finding import tsallis_bisect, sparsemax_bisect
 
 
 def _fy_backward(ctx, grad_output):
@@ -29,7 +30,7 @@ def _omega_sparsemax(p_star):
     return (1 - (p_star ** 2).sum(dim=1)) / 2
 
 
-class _GenericLoss(torch.nn.Module):
+class _GenericLoss(nn.Module):
 
     def __init__(self, weight=None, ignore_index=-100,
                  reduction='elementwise_mean'):
