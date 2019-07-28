@@ -5,7 +5,7 @@ from torch.autograd import gradcheck
 
 from root_finding import sparsemax_bisect, tsallis_bisect
 
-from activations import sparsemax, tsallis15
+from activations import sparsemax, entmax15
 
 
 def test_sparsemax():
@@ -19,7 +19,7 @@ def test_sparsemax():
 def test_tsallis15():
     for _ in range(10):
         x = 0.5 * torch.randn(10, 30000, dtype=torch.float32)
-        p1 = tsallis15(x, 1)
+        p1 = entmax15(x, 1)
         p2 = tsallis_bisect(x, 1.5)
         assert torch.sum((p1 - p2) ** 2) < 1e-7
 

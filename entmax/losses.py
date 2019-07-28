@@ -4,8 +4,8 @@ from torch.autograd import Function
 from .activations import (
     sparsemax,
     sparsemax_topk,
-    tsallis15,
-    tsallis15_topk
+    entmax15,
+    entmax15_topk
 )
 from .root_finding import tsallis_bisect, sparsemax_bisect
 
@@ -149,7 +149,7 @@ class Tsallis15LossFunction(Function):
         """
         input.shape[0] == target.shape[0]
 
-        p_star = tsallis15(input, 1)
+        p_star = entmax15(input, 1)
         loss = _omega_tsallis15(p_star)
 
         p_star.scatter_add_(1, target.unsqueeze(1),

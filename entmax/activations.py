@@ -289,8 +289,8 @@ class Tsallis15TopKFunction(Tsallis15Function):
         return Tsallis15Function.backward(ctx, dY) + (None,)
 
 
-tsallis15 = Tsallis15Function.apply
-tsallis15_topk = Tsallis15TopKFunction.apply
+entmax15 = Tsallis15Function.apply
+entmax15_topk = Tsallis15TopKFunction.apply
 
 
 class Tsallis15(torch.nn.Module):
@@ -300,7 +300,7 @@ class Tsallis15(torch.nn.Module):
         super(Tsallis15, self).__init__()
 
     def forward(self, X):
-        return tsallis15(X, self.dim)
+        return entmax15(X, self.dim)
 
 
 class LogTsallis15(torch.nn.Module):
@@ -310,7 +310,7 @@ class LogTsallis15(torch.nn.Module):
         super(LogTsallis15, self).__init__()
 
     def forward(self, X):
-        return torch.log(tsallis15(X, self.dim))
+        return torch.log(entmax15(X, self.dim))
 
 
 class Tsallis15TopK(torch.nn.Module):
