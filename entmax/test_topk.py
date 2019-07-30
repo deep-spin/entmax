@@ -3,25 +3,25 @@ import torch
 from torch.autograd import gradcheck
 
 
-from activations import (
+from entmax.activations import (
     _threshold_and_support,
     _threshold_and_support_topk,
-    _tsallis_threshold_and_support,
-    _tsallis_threshold_and_support_topk,
+    _entmax_threshold_and_support,
+    _entmax_threshold_and_support_topk,
     SparsemaxTopK,
-    Tsallis15TopK,
+    Entmax15TopK,
 )
 
-from losses import (
+from entmax.losses import (
     SparsemaxLoss,
     SparsemaxTopKLoss,
-    Tsallis15Loss,
-    Tsallis15TopKLoss,
+    Entmax15Loss,
+    Entmax15TopKLoss,
 )
 
 
 @pytest.mark.parametrize('dim', (0, 1, 2))
-@pytest.mark.parametrize('Map', (SparsemaxTopK, Tsallis15TopK))
+@pytest.mark.parametrize('Map', (SparsemaxTopK, Entmax15TopK))
 def test_mapping(dim, Map):
     f = Map(dim=dim, k=3)
 
@@ -32,10 +32,10 @@ def test_mapping(dim, Map):
 
 @pytest.mark.parametrize('dim', (0, 1, 2))
 @pytest.mark.parametrize('coef', (0.00001, 0.5, 10000))
-def test_tsallis_topk(dim, coef):
+def test_entmax_topk(dim, coef):
     x = coef * torch.randn(10, 11, 12)
-    tau1, supp1 = _tsallis_threshold_and_support(x, dim=dim)
-    tau2, supp2 = _tsallis_threshold_and_support_topk(x, dim=dim, k=5)
+    tau1, supp1 = _entmax_threshold_and_support(x, dim=dim)
+    tau2, supp2 = _entmax_threshold_and_support_topk(x, dim=dim, k=5)
 
     assert torch.all(tau1 == tau2)
     assert torch.all(supp1 == supp2)
@@ -83,23 +83,23 @@ def check_speed():
 
     args = dict(reduction='sum', ignore_index=ix)
 
-    from losses import SparsemaxBisectLoss, TsallisBisectLoss
+    from losses import SparsemaxBisectLoss, EntmaxBisectLoss
 
     sp1 = partial(SparsemaxLoss(**args), input=x, target=y)
     sp2 = partial(SparsemaxTopKLoss(k=k, **args), input=x, target=y)
     sp3 = partial(SparsemaxBisectLoss(n_iter=n_iter, **args), input=x, target=y)
-    ts1 = partial(Tsallis15Loss(**args), input=x, target=y)
-    ts2 = partial(Tsallis15TopKLoss(k=k, **args), input=x, target=y)
-    ts3 = partial(TsallisBisectLoss(alpha=1.5, n_iter=n_iter, **args), input=x, target=y)
+    ts1 = partial(Entmax15Loss(**args), input=x, target=y)
+    ts2 = partial(Entmax15TopKLoss(k=k, **args), input=x, target=y)
+    ts3 = partial(EntmaxBisectLoss(alpha=1.5, n_iter=n_iter, **args), input=x, target=y)
 
     torch.cuda.synchronize()
     torch.cuda.synchronize()
     print("sparsemax topk", _bench(sp2))
     print("sparsemax full", _bench(sp1))
     print("sparsemax bis ", _bench(sp3))
-    print("tsallis15 topk", _bench(ts2))
-    print("tsallis15 full", _bench(ts1))
-    print("tsallis15 bis ", _bench(ts3))
+    print("entmax15 topk", _bench(ts2))
+    print("entmax15 full", _bench(ts1))
+    print("entmax15 bis ", _bench(ts3))
 
     print(((sp1() - sp2()) ** 2).sum())
     print(((sp1() - sp3()) ** 2).sum())

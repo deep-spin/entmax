@@ -17,16 +17,16 @@ def _p(x, tau):
     return torch.clamp(x - tau, min=0)
 
 
-def _tsallis_gp(x, alpha):
+def _entmax_gp(x, alpha):
     return x ** (alpha - 1)
 
 
-def _tsallis_gp_inv(y, alpha):
+def _entmax_gp_inv(y, alpha):
     return y ** (1 / (alpha - 1))
 
 
-def _tsallis_p(X,  alpha):
-    return _tsallis_gp_inv(torch.clamp(X, min=0), alpha)
+def _entmax_p(X,  alpha):
+    return _entmax_gp_inv(torch.clamp(X, min=0), alpha)
 
 
 # TODO: support other dims other than 1. The code likely same, but needs tested
@@ -76,7 +76,7 @@ class SparsemaxBisectFunction(Function):
         return dX, None
 
 
-class TsallisBisectFunction(Function):
+class EntmaxBisectFunction(Function):
 
     @staticmethod
     def forward(ctx, X, alpha=1.5, n_iter=50, ensure_sum_one=True):
@@ -89,13 +89,13 @@ class TsallisBisectFunction(Function):
 
         max_val, _ = X.max(dim=dim, keepdim=True)
 
-        minv = _tsallis_gp(0, alpha)
+        minv = _entmax_gp(0, alpha)
 
-        tau_lo = max_val - _tsallis_gp(1, alpha)
-        tau_hi = max_val - _tsallis_gp(1 / d, alpha)
+        tau_lo = max_val - _entmax_gp(1, alpha)
+        tau_hi = max_val - _entmax_gp(1 / d, alpha)
 
-        f_lo = _tsallis_p(X - tau_lo, alpha).sum(dim) - 1
-        f_hi = _tsallis_p(X - tau_hi, alpha).sum(dim) - 1
+        f_lo = _entmax_p(X - tau_lo, alpha).sum(dim) - 1
+        f_hi = _entmax_p(X - tau_hi, alpha).sum(dim) - 1
 
         dm = tau_hi - tau_lo
 
@@ -103,7 +103,7 @@ class TsallisBisectFunction(Function):
 
             dm /= 2
             tau_m = tau_lo + dm
-            p_m = _tsallis_p(X - tau_m, alpha)
+            p_m = _entmax_p(X - tau_m, alpha)
             f_m = p_m.sum(dim) - 1
 
             mask = (f_m * f_lo >= 0).unsqueeze(dim)
@@ -130,4 +130,4 @@ class TsallisBisectFunction(Function):
 
 
 sparsemax_bisect = SparsemaxBisectFunction.apply
-tsallis_bisect = TsallisBisectFunction.apply
+entmax_bisect = EntmaxBisectFunction.apply

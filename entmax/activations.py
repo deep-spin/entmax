@@ -9,9 +9,10 @@ By Ben Peters and Vlad Niculae
 """
 
 import torch
+import torch.nn as nn
 from torch.autograd import Function
 import torch.nn as nn
-from .root_finding import tsallis_bisect, sparsemax_bisect
+from entmax.root_finding import entmax_bisect, sparsemax_bisect
 
 
 def _make_ix_like(input, dim=0):
@@ -190,7 +191,7 @@ class LogSparsemaxTopK(nn.Module):
         return torch.log(sparsemax_topk(input, self.dim, self.k))
 
 
-def _tsallis_threshold_and_support(input, dim=0):
+def _entmax_threshold_and_support(input, dim=0):
     Xsrt, _ = torch.sort(input, descending=True, dim=dim)
 
     rho = _make_ix_like(input, dim)
@@ -210,7 +211,7 @@ def _tsallis_threshold_and_support(input, dim=0):
     return tau_star, support_size
 
 
-def _tsallis_threshold_and_support_topk(input, dim=0, k=100):
+def _entmax_threshold_and_support_topk(input, dim=0, k=100):
 
     if k >= input.shape[dim]:  # do full sort
         Xsrt, _ = torch.sort(input, dim=dim, descending=True)
@@ -236,23 +237,23 @@ def _tsallis_threshold_and_support_topk(input, dim=0, k=100):
 
     if torch.any(unsolved):
         X_ = _roll_last(input, dim)[unsolved]
-        tau_, ss_ = _tsallis_threshold_and_support_topk(X_, dim=-1, k=2 * k)
+        tau_, ss_ = _entmax_threshold_and_support_topk(X_, dim=-1, k=2 * k)
         _roll_last(tau_star, dim)[unsolved] = tau_
         _roll_last(support_size, dim)[unsolved] = ss_
 
     return tau_star, support_size
 
 
-class Tsallis15Function(Function):
+class Entmax15Function(Function):
     @staticmethod
     def forward(ctx, X, dim=0):
         ctx.dim = dim
 
         max_val, _ = X.max(dim=dim, keepdim=True)
         X = X - max_val  # same numerical stability trick as for softmax
-        X = X / 2  # divide by 2 to solve actual Tsallis
+        X = X / 2  # divide by 2 to solve actual Entmax
 
-        tau_star, _ = _tsallis_threshold_and_support(X, dim)
+        tau_star, _ = _entmax_threshold_and_support(X, dim)
 
         Y = torch.clamp(X - tau_star, min=0) ** 2
         ctx.save_for_backward(Y)
@@ -269,16 +270,16 @@ class Tsallis15Function(Function):
         return dX, None
 
 
-class Tsallis15TopKFunction(Tsallis15Function):
+class Entmax15TopKFunction(Entmax15Function):
     @staticmethod
     def forward(ctx, X, dim=0, k=100):
         ctx.dim = dim
 
         max_val, _ = X.max(dim=dim, keepdim=True)
         X = X - max_val  # same numerical stability trick as for softmax
-        X = X / 2  # divide by 2 to solve actual Tsallis
+        X = X / 2  # divide by 2 to solve actual Entmax
 
-        tau_star, _ = _tsallis_threshold_and_support_topk(X, dim=dim, k=k)
+        tau_star, _ = _entmax_threshold_and_support_topk(X, dim=dim, k=k)
 
         Y = torch.clamp(X - tau_star, min=0) ** 2
         ctx.save_for_backward(Y)
@@ -286,65 +287,65 @@ class Tsallis15TopKFunction(Tsallis15Function):
 
     @staticmethod
     def backward(ctx, dY):
-        return Tsallis15Function.backward(ctx, dY) + (None,)
+        return Entmax15Function.backward(ctx, dY) + (None,)
 
 
-entmax15 = Tsallis15Function.apply
-entmax15_topk = Tsallis15TopKFunction.apply
+entmax15 = Entmax15Function.apply
+entmax15_topk = Entmax15TopKFunction.apply
 
 
-class Tsallis15(torch.nn.Module):
+class Entmax15(nn.Module):
 
     def __init__(self, dim=0):
         self.dim = dim
-        super(Tsallis15, self).__init__()
+        super(Entmax15, self).__init__()
 
     def forward(self, X):
         return entmax15(X, self.dim)
 
 
-class LogTsallis15(torch.nn.Module):
+class LogEntmax15(nn.Module):
 
     def __init__(self, dim=0):
         self.dim = dim
-        super(LogTsallis15, self).__init__()
+        super(LogEntmax15, self).__init__()
 
     def forward(self, X):
         return torch.log(entmax15(X, self.dim))
 
 
-class Tsallis15TopK(torch.nn.Module):
+class Entmax15TopK(nn.Module):
 
     def __init__(self, dim=0, k=100):
         self.dim = dim
         self.k = k
-        super(Tsallis15TopK, self).__init__()
+        super(Entmax15TopK, self).__init__()
 
     def forward(self, X):
-        return tsallis15_topk(X, self.dim, self.k)
+        return entmax15_topk(X, self.dim, self.k)
 
 
-class LogTsallis15TopK(torch.nn.Module):
+class LogEntmax15TopK(nn.Module):
 
     def __init__(self, dim=0, k=100):
         self.dim = dim
         self.k = k
-        super(LogTsallis15TopK, self).__init__()
+        super(LogEntmax15TopK, self).__init__()
 
     def forward(self, X):
-        return torch.log(tsallis15_topk(X, self.dim, self.k))
+        return torch.log(entmax15_topk(X, self.dim, self.k))
 
 
-class LogTsallisBisect(nn.Module):
+class LogEntmaxBisect(nn.Module):
     def __init__(self, alpha=1.5, n_iter=50):
         self.alpha = alpha
         self.n_iter = n_iter
-        super(LogTsallisBisect, self).__init__()
+        super(LogEntmaxBisect, self).__init__()
 
     def forward(self, X):
         assert X.dim() == 2
 
-        p_star =  tsallis_bisect(X, self.alpha, self.n_iter)
+        p_star =  entmax_bisect(X, self.alpha, self.n_iter)
         p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
 
         return torch.log(p_star)
