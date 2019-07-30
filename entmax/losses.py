@@ -55,10 +55,20 @@ class _GenericLoss(nn.Module):
         return loss
 
 
-class SparsemaxLossFunction(Function):
+class _GenericLossFunction(Function):
+    @classmethod
+    def forward(cls, ctx, input, target):
+        return NotImplemented
 
-    @staticmethod
-    def forward(ctx, input, target):
+    @classmethod
+    def backward(cls, ctx, grad_output):
+        return _fy_backward(ctx, grad_output), None
+
+
+class SparsemaxLossFunction(_GenericLossFunction):
+
+    @classmethod
+    def forward(cls, ctx, input, target):
         """
         input (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
@@ -77,15 +87,11 @@ class SparsemaxLossFunction(Function):
         # loss = torch.clamp(loss, min=0.0)  # needed?
         return loss
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        return _fy_backward(ctx, grad_output), None
 
+class SparsemaxBisectLossFunction(_GenericLossFunction):
 
-class SparsemaxBisectLossFunction(Function):
-
-    @staticmethod
-    def forward(ctx, input, target, n_iter=50):
+    @classmethod
+    def forward(cls, ctx, input, target, n_iter=50):
         """
         input (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
@@ -108,15 +114,16 @@ class SparsemaxBisectLossFunction(Function):
         # loss = torch.clamp(loss, min=0.0)  # needed?
         return loss
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        return _fy_backward(ctx, grad_output), None, None
+    @classmethod
+    def backward(cls, ctx, grad_output):
+        grad_input = super(SparsemaxBisectLossFunction, cls).backward(ctx, grad_output)
+        return grad_input + (None,)
 
 
-class SparsemaxTopKLossFunction(Function):
+class SparsemaxTopKLossFunction(_GenericLossFunction):
 
-    @staticmethod
-    def forward(ctx, input, target, k=100):
+    @classmethod
+    def forward(cls, ctx, input, target, k=100):
         """
         input (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
@@ -135,15 +142,16 @@ class SparsemaxTopKLossFunction(Function):
         # loss = torch.clamp(loss, min=0.0)  # needed?
         return loss
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        return _fy_backward(ctx, grad_output), None, None
+    @classmethod
+    def backward(cls, ctx, grad_output):
+        grad_input = super(SparsemaxTopKLossFunction, cls).backward(ctx, grad_output)
+        return grad_input + (None,)
 
 
-class Entmax15LossFunction(Function):
+class Entmax15LossFunction(_GenericLossFunction):
 
-    @staticmethod
-    def forward(ctx, input, target):
+    @classmethod
+    def forward(cls, ctx, input, target):
         """
         input (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
@@ -162,15 +170,11 @@ class Entmax15LossFunction(Function):
         # loss = torch.clamp(loss, min=0.0)  # needed?
         return loss
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        return _fy_backward(ctx, grad_output), None
 
+class Entmax15TopKLossFunction(_GenericLossFunction):
 
-class Entmax15TopKLossFunction(Function):
-
-    @staticmethod
-    def forward(ctx, input, target, k=100):
+    @classmethod
+    def forward(cls, ctx, input, target, k=100):
         """
         input (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
@@ -189,15 +193,16 @@ class Entmax15TopKLossFunction(Function):
         # loss = torch.clamp(loss, min=0.0)  # needed?
         return loss
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        return _fy_backward(ctx, grad_output), None, None
+    @classmethod
+    def backward(cls, ctx, grad_output):
+        grad_input = super(Entmax15TopKLossFunction, cls).backward(ctx, grad_output)
+        return grad_input + (None,)
 
 
-class EntmaxBisectLossFunction(Function):
+class EntmaxBisectLossFunction(_GenericLossFunction):
 
-    @staticmethod
-    def forward(ctx, input, target, alpha=1.5, n_iter=50):
+    @classmethod
+    def forward(cls, ctx, input, target, alpha=1.5, n_iter=50):
         """
         input (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
@@ -220,9 +225,10 @@ class EntmaxBisectLossFunction(Function):
         # loss = torch.clamp(loss, min=0.0)  # needed?
         return loss
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        return _fy_backward(ctx, grad_output), None, None, None
+    @classmethod
+    def backward(cls, ctx, grad_output):
+        grad_input = super(EntmaxBisectLossFunction, cls).backward(ctx, grad_output)
+        return grad_input + (None, None)
 
 
 sparsemax_loss = SparsemaxLossFunction.apply
