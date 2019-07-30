@@ -89,8 +89,8 @@ def _threshold_and_support_topk(input, dim=0, k=100):
 
 class SparsemaxFunction(Function):
 
-    @staticmethod
-    def forward(ctx, input, dim=0):
+    @classmethod
+    def forward(cls, ctx, input, dim=0):
         """
         sparsemax: normalizing sparse transform (a la softmax)
         Parameters:
@@ -101,14 +101,14 @@ class SparsemaxFunction(Function):
         """
         ctx.dim = dim
         max_val, _ = input.max(dim=dim, keepdim=True)
-        input = input - max_val  # same numerical stability trick as for softmax
+        input = input - max_val  # same numerical stability trick as softmax
         tau, supp_size = _threshold_and_support(input, dim=dim)
         output = torch.clamp(input - tau, min=0)
         ctx.save_for_backward(supp_size, output)
         return output
 
-    @staticmethod
-    def backward(ctx, grad_output):
+    @classmethod
+    def backward(cls, ctx, grad_output):
         supp_size, output = ctx.saved_tensors
         dim = ctx.dim
         grad_input = grad_output.clone()
@@ -120,10 +120,10 @@ class SparsemaxFunction(Function):
         return grad_input, None
 
 
-class SparsemaxFunctionTopK(Function):
+class SparsemaxFunctionTopK(SparsemaxFunction):
 
-    @staticmethod
-    def forward(ctx, input, dim=0, k=100):
+    @classmethod
+    def forward(cls, ctx, input, dim=0, k=100):
         """
         sparsemax: normalizing sparse transform (a la softmax)
         Parameters:
@@ -140,9 +140,9 @@ class SparsemaxFunctionTopK(Function):
         ctx.save_for_backward(supp_size, output)
         return output
 
-    @staticmethod
-    def backward(ctx, grad_output):
-        return SparsemaxFunction.backward(ctx, grad_output) + (None,)
+    @classmethod
+    def backward(cls, ctx, grad_output):
+        return super(SparsemaxFunctionTopK, cls).backward(ctx, grad_output) + (None,)
 
 
 sparsemax = SparsemaxFunction.apply
@@ -245,8 +245,8 @@ def _entmax_threshold_and_support_topk(input, dim=0, k=100):
 
 
 class Entmax15Function(Function):
-    @staticmethod
-    def forward(ctx, X, dim=0):
+    @classmethod
+    def forward(cls, ctx, X, dim=0):
         ctx.dim = dim
 
         max_val, _ = X.max(dim=dim, keepdim=True)
@@ -259,8 +259,8 @@ class Entmax15Function(Function):
         ctx.save_for_backward(Y)
         return Y
 
-    @staticmethod
-    def backward(ctx, dY):
+    @classmethod
+    def backward(cls, ctx, dY):
         Y, = ctx.saved_tensors
         gppr = Y.sqrt()  # = 1 / g'' (Y)
         dX = dY * gppr
@@ -271,8 +271,8 @@ class Entmax15Function(Function):
 
 
 class Entmax15TopKFunction(Entmax15Function):
-    @staticmethod
-    def forward(ctx, X, dim=0, k=100):
+    @classmethod
+    def forward(cls, ctx, X, dim=0, k=100):
         ctx.dim = dim
 
         max_val, _ = X.max(dim=dim, keepdim=True)
@@ -285,9 +285,9 @@ class Entmax15TopKFunction(Entmax15Function):
         ctx.save_for_backward(Y)
         return Y
 
-    @staticmethod
-    def backward(ctx, dY):
-        return Entmax15Function.backward(ctx, dY) + (None,)
+    @classmethod
+    def backward(cls, ctx, dY):
+        return super(Entmax15TopKFunction, cls).backward(ctx, dY) + (None,)
 
 
 entmax15 = Entmax15Function.apply
