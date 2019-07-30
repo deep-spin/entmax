@@ -321,7 +321,7 @@ class Tsallis15TopK(torch.nn.Module):
         super(Tsallis15TopK, self).__init__()
 
     def forward(self, X):
-        return tsallis15_topk(X, self.dim, self.k)
+        return entmax15_topk(X, self.dim, self.k)
 
 
 class LogTsallis15TopK(torch.nn.Module):
@@ -332,7 +332,7 @@ class LogTsallis15TopK(torch.nn.Module):
         super(LogTsallis15TopK, self).__init__()
 
     def forward(self, X):
-        return torch.log(tsallis15_topk(X, self.dim, self.k))
+        return torch.log(entmax15_topk(X, self.dim, self.k))
 
 
 class LogTsallisBisect(nn.Module):

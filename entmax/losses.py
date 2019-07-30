@@ -22,7 +22,7 @@ def _omega_tsallis(p_star, alpha):
 
 
 # more efficient specializations
-def _omega_tsallis15(p_star):
+def _omega_entmax15(p_star):
     return (1 - (p_star * torch.sqrt(p_star)).sum(dim=1)) / 0.75
 
 
@@ -151,7 +151,7 @@ class Tsallis15LossFunction(Function):
         input.shape[0] == target.shape[0]
 
         p_star = entmax15(input, 1)
-        loss = _omega_tsallis15(p_star)
+        loss = _omega_entmax15(p_star)
 
         p_star.scatter_add_(1, target.unsqueeze(1),
                             torch.full_like(p_star, -1))
@@ -177,8 +177,8 @@ class Tsallis15TopKLossFunction(Function):
         """
         assert input.shape[0] == target.shape[0]
 
-        p_star = tsallis15_topk(input, 1, k)
-        loss = _omega_tsallis15(p_star)
+        p_star = entmax15_topk(input, 1, k)
+        loss = _omega_entmax15(p_star)
 
         p_star.scatter_add_(1, target.unsqueeze(1),
                             torch.full_like(p_star, -1))
@@ -228,9 +228,9 @@ class TsallisBisectLossFunction(Function):
 sparsemax_loss = SparsemaxLossFunction.apply
 sparsemax_bisect_loss = SparsemaxBisectLossFunction.apply
 sparsemax_topk_loss = SparsemaxTopKLossFunction.apply
-tsallis15_loss = Tsallis15LossFunction.apply
+entmax15_loss = Tsallis15LossFunction.apply
 tsallis_bisect_loss = TsallisBisectLossFunction.apply
-tsallis15_topk_loss = Tsallis15TopKLossFunction.apply
+entmax15_topk_loss = Tsallis15TopKLossFunction.apply
 
 
 class SparsemaxLoss(_GenericLoss):
@@ -242,7 +242,7 @@ class SparsemaxLoss(_GenericLoss):
 class Tsallis15Loss(_GenericLoss):
 
     def loss(self, input, target):
-        return tsallis15_loss(input, target)
+        return entmax15_loss(input, target)
 
 
 class SparsemaxBisectLoss(_GenericLoss):
@@ -287,4 +287,4 @@ class Tsallis15TopKLoss(_GenericLoss):
         super(Tsallis15TopKLoss, self).__init__(weight, ignore_index, reduction)
 
     def loss(self, input, target):
-        return tsallis15_topk_loss(input, target, self.k)
+        return entmax15_topk_loss(input, target, self.k)
