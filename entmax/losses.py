@@ -8,7 +8,7 @@ from entmax.activations import (
     entmax15,
     entmax15_topk
 )
-from entmax.root_finding import tsallis_bisect, sparsemax_bisect
+from entmax.root_finding import entmax_bisect, sparsemax_bisect
 
 
 def _fy_backward(ctx, grad_output):
@@ -17,7 +17,7 @@ def _fy_backward(ctx, grad_output):
     return grad
 
 # computes Omega(y_true) - Omega(p*)
-def _omega_tsallis(p_star, alpha):
+def _omega_entmax(p_star, alpha):
     return (1 - (p_star ** alpha).sum(dim=1)) / (alpha * (alpha - 1))
 
 
@@ -140,7 +140,7 @@ class SparsemaxTopKLossFunction(Function):
         return _fy_backward(ctx, grad_output), None, None
 
 
-class Tsallis15LossFunction(Function):
+class Entmax15LossFunction(Function):
 
     @staticmethod
     def forward(ctx, input, target):
@@ -167,7 +167,7 @@ class Tsallis15LossFunction(Function):
         return _fy_backward(ctx, grad_output), None
 
 
-class Tsallis15TopKLossFunction(Function):
+class Entmax15TopKLossFunction(Function):
 
     @staticmethod
     def forward(ctx, input, target, k=100):
@@ -194,7 +194,7 @@ class Tsallis15TopKLossFunction(Function):
         return _fy_backward(ctx, grad_output), None, None
 
 
-class TsallisBisectLossFunction(Function):
+class EntmaxBisectLossFunction(Function):
 
     @staticmethod
     def forward(ctx, input, target, alpha=1.5, n_iter=50):
@@ -204,12 +204,12 @@ class TsallisBisectLossFunction(Function):
         """
         assert input.shape[0] == target.shape[0]
 
-        p_star = tsallis_bisect(input, alpha, n_iter)
+        p_star = entmax_bisect(input, alpha, n_iter)
 
-        # this is now done directly in tsallis_bisect
+        # this is now done directly in entmax_bisect
         # p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
 
-        loss = _omega_tsallis(p_star, alpha)
+        loss = _omega_entmax(p_star, alpha)
 
         p_star.scatter_add_(1, target.unsqueeze(1),
                             torch.full_like(p_star, -1))
@@ -228,9 +228,9 @@ class TsallisBisectLossFunction(Function):
 sparsemax_loss = SparsemaxLossFunction.apply
 sparsemax_bisect_loss = SparsemaxBisectLossFunction.apply
 sparsemax_topk_loss = SparsemaxTopKLossFunction.apply
-entmax15_loss = Tsallis15LossFunction.apply
-tsallis_bisect_loss = TsallisBisectLossFunction.apply
-entmax15_topk_loss = Tsallis15TopKLossFunction.apply
+entmax15_loss = Entmax15LossFunction.apply
+entmax_bisect_loss = EntmaxBisectLossFunction.apply
+entmax15_topk_loss = Entmax15TopKLossFunction.apply
 
 
 class SparsemaxLoss(_GenericLoss):
@@ -239,7 +239,7 @@ class SparsemaxLoss(_GenericLoss):
         return sparsemax_loss(input, target)
 
 
-class Tsallis15Loss(_GenericLoss):
+class Entmax15Loss(_GenericLoss):
 
     def loss(self, input, target):
         return entmax15_loss(input, target)
@@ -267,24 +267,24 @@ class SparsemaxTopKLoss(_GenericLoss):
         return sparsemax_topk_loss(input, target, self.k)
 
 
-class TsallisBisectLoss(_GenericLoss):
+class EntmaxBisectLoss(_GenericLoss):
 
     def __init__(self, alpha=1.5, n_iter=50, weight=None, ignore_index=-100,
                  reduction='elementwise_mean'):
         self.alpha = alpha
         self.n_iter = n_iter
-        super(TsallisBisectLoss, self).__init__(weight, ignore_index, reduction)
+        super(EntmaxBisectLoss, self).__init__(weight, ignore_index, reduction)
 
     def loss(self, input, target):
-        return tsallis_bisect_loss(input, target, self.alpha, self.n_iter)
+        return entmax_bisect_loss(input, target, self.alpha, self.n_iter)
 
 
-class Tsallis15TopKLoss(_GenericLoss):
+class Entmax15TopKLoss(_GenericLoss):
 
     def __init__(self, k=100, weight=None, ignore_index=-100,
                  reduction='elementwise_mean'):
         self.k = k
-        super(Tsallis15TopKLoss, self).__init__(weight, ignore_index, reduction)
+        super(Entmax15TopKLoss, self).__init__(weight, ignore_index, reduction)
 
     def loss(self, input, target):
         return entmax15_topk_loss(input, target, self.k)

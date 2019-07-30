@@ -2,18 +2,18 @@ import torch
 import pytest
 
 from entmax.activations import (
-    Sparsemax, Tsallis15, SparsemaxTopK, Tsallis15TopK
+    Sparsemax, Entmax15, SparsemaxTopK, Entmax15TopK
 )
 
-from entmax.root_finding import sparsemax_bisect, tsallis_bisect
+from entmax.root_finding import sparsemax_bisect, entmax_bisect
 
 funcs = [
     Sparsemax(dim=1),
-    Tsallis15(dim=1),
+    Entmax15(dim=1),
     SparsemaxTopK(dim=1),
-    Tsallis15TopK(dim=1),
+    Entmax15TopK(dim=1),
     sparsemax_bisect,
-    tsallis_bisect,
+    entmax_bisect,
 ]
 
 
@@ -40,8 +40,8 @@ def test_mask_alphas(alpha):
     x[:, 3:] = -float('inf')
     x0 = x[:, :3]
 
-    y = tsallis_bisect(x, alpha)
-    y0 = tsallis_bisect(x0, alpha)
+    y = entmax_bisect(x, alpha)
+    y0 = entmax_bisect(x0, alpha)
 
     y[:, :3] -= y0
 

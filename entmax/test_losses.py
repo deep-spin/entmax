@@ -6,10 +6,10 @@ from functools import partial
 from entmax.losses import (
     SparsemaxLoss,
     SparsemaxTopKLoss,
-    Tsallis15Loss,
-    Tsallis15TopKLoss,
+    Entmax15Loss,
+    Entmax15TopKLoss,
     SparsemaxBisectLoss,
-    TsallisBisectLoss,
+    EntmaxBisectLoss,
 )
 
 
@@ -23,10 +23,10 @@ ys = [torch.max(torch.randn_like(X), dim=1)[1] for X in Xs]
 losses = [
     SparsemaxLoss,
     partial(SparsemaxTopKLoss, k=5),
-    Tsallis15Loss,
-    partial(Tsallis15TopKLoss, k=5),
+    Entmax15Loss,
+    partial(Entmax15TopKLoss, k=5),
     SparsemaxBisectLoss,
-    TsallisBisectLoss,
+    EntmaxBisectLoss,
 ]
 
 
@@ -64,6 +64,6 @@ def test_index_ignored(Loss):
 
 if __name__ == '__main__':
     test_sparsemax_loss()
-    test_tsallis_loss()
+    test_entmax_loss()
     test_sparsemax_bisect_loss()
-    test_tsallis_bisect_loss()
+    test_entmax_bisect_loss()
