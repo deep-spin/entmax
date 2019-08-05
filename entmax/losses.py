@@ -4,7 +4,6 @@ from torch.autograd import Function
 
 from entmax.activations import (
     sparsemax,
-    sparsemax_topk,
     entmax15,
     entmax15_topk
 )
@@ -15,6 +14,7 @@ def _fy_backward(ctx, grad_output):
     p_star, = ctx.saved_tensors
     grad = grad_output.unsqueeze(1) * p_star
     return grad
+
 
 # computes Omega(y_true) - Omega(p*)
 def _omega_entmax(p_star, alpha):
@@ -68,14 +68,14 @@ class _GenericLossFunction(Function):
 class SparsemaxLossFunction(_GenericLossFunction):
 
     @classmethod
-    def forward(cls, ctx, input, target):
+    def forward(cls, ctx, input, target, k=None):
         """
         input (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
         """
         assert input.shape[0] == target.shape[0]
 
-        p_star = sparsemax(input, 1)
+        p_star = sparsemax(input, 1, k)
         loss = _omega_sparsemax(p_star)
 
         p_star.scatter_add_(1, target.unsqueeze(1),
@@ -86,6 +86,11 @@ class SparsemaxLossFunction(_GenericLossFunction):
 
         # loss = torch.clamp(loss, min=0.0)  # needed?
         return loss
+
+    @classmethod
+    def backward(cls, ctx, grad_output):
+        grad_input = super(SparsemaxLossFunction, cls).backward(ctx, grad_output)
+        return grad_input + (None,)
 
 
 class SparsemaxBisectLossFunction(_GenericLossFunction):
@@ -117,34 +122,6 @@ class SparsemaxBisectLossFunction(_GenericLossFunction):
     @classmethod
     def backward(cls, ctx, grad_output):
         grad_input = super(SparsemaxBisectLossFunction, cls).backward(ctx, grad_output)
-        return grad_input + (None,)
-
-
-class SparsemaxTopKLossFunction(_GenericLossFunction):
-
-    @classmethod
-    def forward(cls, ctx, input, target, k=100):
-        """
-        input (FloatTensor): n x num_classes
-        target (LongTensor): n, the indices of the target classes
-        """
-        assert input.shape[0] == target.shape[0]
-
-        p_star = sparsemax_topk(input, 1, k)
-        loss = _omega_sparsemax(p_star)
-
-        p_star.scatter_add_(1, target.unsqueeze(1),
-                            torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, input)
-
-        ctx.save_for_backward(p_star)
-
-        # loss = torch.clamp(loss, min=0.0)  # needed?
-        return loss
-
-    @classmethod
-    def backward(cls, ctx, grad_output):
-        grad_input = super(SparsemaxTopKLossFunction, cls).backward(ctx, grad_output)
         return grad_input + (None,)
 
 
@@ -233,16 +210,9 @@ class EntmaxBisectLossFunction(_GenericLossFunction):
 
 sparsemax_loss = SparsemaxLossFunction.apply
 sparsemax_bisect_loss = SparsemaxBisectLossFunction.apply
-sparsemax_topk_loss = SparsemaxTopKLossFunction.apply
 entmax15_loss = Entmax15LossFunction.apply
 entmax_bisect_loss = EntmaxBisectLossFunction.apply
 entmax15_topk_loss = Entmax15TopKLossFunction.apply
-
-
-class SparsemaxLoss(_GenericLoss):
-
-    def loss(self, input, target):
-        return sparsemax_loss(input, target)
 
 
 class Entmax15Loss(_GenericLoss):
@@ -262,15 +232,15 @@ class SparsemaxBisectLoss(_GenericLoss):
         return sparsemax_bisect_loss(input, target, self.n_iter)
 
 
-class SparsemaxTopKLoss(_GenericLoss):
+class SparsemaxLoss(_GenericLoss):
 
-    def __init__(self, k=100, weight=None, ignore_index=-100,
+    def __init__(self, k=None, weight=None, ignore_index=-100,
                  reduction='elementwise_mean'):
         self.k = k
-        super(SparsemaxTopKLoss, self).__init__(weight, ignore_index, reduction)
+        super(SparsemaxLoss, self).__init__(weight, ignore_index, reduction)
 
     def loss(self, input, target):
-        return sparsemax_topk_loss(input, target, self.k)
+        return sparsemax_loss(input, target, self.k)
 
 
 class EntmaxBisectLoss(_GenericLoss):

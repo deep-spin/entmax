@@ -1,16 +1,14 @@
 import torch
 import pytest
 
-from entmax.activations import (
-    Sparsemax, Entmax15, SparsemaxTopK, Entmax15TopK
-)
+from entmax.activations import Sparsemax, Entmax15, Entmax15TopK
 
 from entmax.root_finding import sparsemax_bisect, entmax_bisect
 
 funcs = [
     Sparsemax(dim=1),
     Entmax15(dim=1),
-    SparsemaxTopK(dim=1),
+    Sparsemax(dim=1, k=512),
     Entmax15TopK(dim=1),
     sparsemax_bisect,
     entmax_bisect,
@@ -46,4 +44,3 @@ def test_mask_alphas(alpha):
     y[:, :3] -= y0
 
     assert torch.allclose(y, torch.zeros_like(y))
-

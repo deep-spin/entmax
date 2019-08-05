@@ -11,7 +11,6 @@ By Ben Peters and Vlad Niculae
 import torch
 import torch.nn as nn
 from torch.autograd import Function
-import torch.nn as nn
 from entmax.root_finding import entmax_bisect, sparsemax_bisect
 
 
@@ -33,27 +32,7 @@ def _roll_last(X, dim):
     return X.permute(perm)
 
 
-def _threshold_and_support(input, dim=0):
-    """
-    Sparsemax building block: compute the threshold
-    Parameters:
-        input: any dimension
-        dim: dimension along which to apply the sparsemax
-    Returns:
-        the threshold value
-    """
-    input_srt, _ = torch.sort(input, descending=True, dim=dim)
-    input_cumsum = input_srt.cumsum(dim) - 1
-    rhos = _make_ix_like(input, dim)
-    support = rhos * input_srt > input_cumsum
-
-    support_size = support.sum(dim=dim).unsqueeze(dim)
-    tau = input_cumsum.gather(dim, support_size - 1)
-    tau /= support_size.to(input.dtype)
-    return tau, support_size
-
-
-def _threshold_and_support_topk(input, dim=0, k=100):
+def _threshold_and_support(input, dim=0, k=None):
     """
     Sparsemax building block: compute the threshold
     Parameters:
@@ -63,7 +42,7 @@ def _threshold_and_support_topk(input, dim=0, k=100):
         the threshold value
     """
 
-    if k >= input.shape[dim]:  # do full sort
+    if k is None or k >= input.shape[dim]:  # do full sort
         topk, _ = torch.sort(input, dim=dim, descending=True)
     else:
         topk, _ = torch.topk(input, k=k, dim=dim)
@@ -76,13 +55,14 @@ def _threshold_and_support_topk(input, dim=0, k=100):
     tau = topk_cumsum.gather(dim, support_size - 1)
     tau /= support_size.to(input.dtype)
 
-    unsolved = (support_size == k).squeeze(dim)
+    if k is not None and k < input.shape[dim]:
+        unsolved = (support_size == k).squeeze(dim)
 
-    if torch.any(unsolved):
-        in_ = _roll_last(input, dim)[unsolved]
-        tau_, ss_ = _threshold_and_support_topk(in_, dim=-1, k=2 * k)
-        _roll_last(tau, dim)[unsolved] = tau_
-        _roll_last(support_size, dim)[unsolved] = ss_
+        if torch.any(unsolved):
+            in_ = _roll_last(input, dim)[unsolved]
+            tau_, ss_ = _threshold_and_support(in_, dim=-1, k=2 * k)
+            _roll_last(tau, dim)[unsolved] = tau_
+            _roll_last(support_size, dim)[unsolved] = ss_
 
     return tau, support_size
 
@@ -90,7 +70,7 @@ def _threshold_and_support_topk(input, dim=0, k=100):
 class SparsemaxFunction(Function):
 
     @classmethod
-    def forward(cls, ctx, input, dim=0):
+    def forward(cls, ctx, input, dim=0, k=None):
         """
         sparsemax: normalizing sparse transform (a la softmax)
         Parameters:
@@ -102,7 +82,7 @@ class SparsemaxFunction(Function):
         ctx.dim = dim
         max_val, _ = input.max(dim=dim, keepdim=True)
         input = input - max_val  # same numerical stability trick as softmax
-        tau, supp_size = _threshold_and_support(input, dim=dim)
+        tau, supp_size = _threshold_and_support(input, dim=dim, k=k)
         output = torch.clamp(input - tau, min=0)
         ctx.save_for_backward(supp_size, output)
         return output
@@ -117,78 +97,32 @@ class SparsemaxFunction(Function):
         v_hat = grad_input.sum(dim=dim) / supp_size.to(output.dtype).squeeze()
         v_hat = v_hat.unsqueeze(dim)
         grad_input = torch.where(output != 0, grad_input - v_hat, grad_input)
-        return grad_input, None
-
-
-class SparsemaxFunctionTopK(SparsemaxFunction):
-
-    @classmethod
-    def forward(cls, ctx, input, dim=0, k=100):
-        """
-        sparsemax: normalizing sparse transform (a la softmax)
-        Parameters:
-            input (Tensor): any shape
-            dim: dimension along which to apply sparsemax
-        Returns:
-            output (Tensor): same shape as input
-        """
-        ctx.dim = dim
-        max_val, _ = input.max(dim=dim, keepdim=True)
-        input = input - max_val  # same numerical stability trick as for softmax
-        tau, supp_size = _threshold_and_support_topk(input, dim=dim, k=k)
-        output = torch.clamp(input - tau, min=0)
-        ctx.save_for_backward(supp_size, output)
-        return output
-
-    @classmethod
-    def backward(cls, ctx, grad_output):
-        return super(SparsemaxFunctionTopK, cls).backward(ctx, grad_output) + (None,)
+        return grad_input, None, None
 
 
 sparsemax = SparsemaxFunction.apply
-sparsemax_topk = SparsemaxFunctionTopK.apply
 
 
 class Sparsemax(nn.Module):
 
-    def __init__(self, dim=0):
+    def __init__(self, dim=0, k=None):
         self.dim = dim
+        self.k = k
         super(Sparsemax, self).__init__()
 
     def forward(self, input):
-        return sparsemax(input, self.dim)
-
-
-class SparsemaxTopK(nn.Module):
-
-    def __init__(self, dim=0, k=100):
-        self.dim = dim
-        self.k = k
-        super(SparsemaxTopK, self).__init__()
-
-    def forward(self, input):
-        return sparsemax_topk(input, self.dim, self.k)
+        return sparsemax(input, self.dim, self.k)
 
 
 class LogSparsemax(nn.Module):
 
-    def __init__(self, dim=0):
+    def __init__(self, dim=0, k=None):
         self.dim = dim
+        self.k = None
         super(LogSparsemax, self).__init__()
 
     def forward(self, input):
-        return torch.log(sparsemax(input, self.dim))
-
-
-class LogSparsemaxTopK(nn.Module):
-
-    def __init__(self, dim=0, k=100):
-        self.dim = dim
-        self.k = k
-        super(LogSparsemaxTopK, self).__init__()
-
-    def forward(self, input):
-        return torch.log(sparsemax_topk(input, self.dim, self.k))
+        return torch.log(sparsemax(input, self.dim, self.k))
 
 
 def _entmax_threshold_and_support(input, dim=0):
@@ -211,9 +145,9 @@ def _entmax_threshold_and_support(input, dim=0):
     return tau_star, support_size
 
 
-def _entmax_threshold_and_support_topk(input, dim=0, k=100):
+def _entmax_threshold_and_support_topk(input, dim=0, k=None):
 
-    if k >= input.shape[dim]:  # do full sort
+    if k is None or k >= input.shape[dim]:  # do full sort
         Xsrt, _ = torch.sort(input, dim=dim, descending=True)
     else:
         Xsrt, _ = torch.topk(input, k=k, dim=dim)
@@ -233,13 +167,14 @@ def _entmax_threshold_and_support_topk(input, dim=0, k=100):
     support_size = (tau <= Xsrt).sum(dim).unsqueeze(dim)
     tau_star = tau.gather(dim, support_size - 1)
 
-    unsolved = (support_size == k).squeeze(dim)
+    if k is not None and k < input.shape[dim]:
+        unsolved = (support_size == k).squeeze(dim)
 
-    if torch.any(unsolved):
-        X_ = _roll_last(input, dim)[unsolved]
-        tau_, ss_ = _entmax_threshold_and_support_topk(X_, dim=-1, k=2 * k)
-        _roll_last(tau_star, dim)[unsolved] = tau_
-        _roll_last(support_size, dim)[unsolved] = ss_
+        if torch.any(unsolved):
+            X_ = _roll_last(input, dim)[unsolved]
+            tau_, ss_ = _entmax_threshold_and_support_topk(X_, dim=-1, k=2 * k)
+            _roll_last(tau_star, dim)[unsolved] = tau_
+            _roll_last(support_size, dim)[unsolved] = ss_
 
     return tau_star, support_size
 

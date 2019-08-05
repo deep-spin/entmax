@@ -5,7 +5,6 @@ from functools import partial
 
 from entmax.losses import (
     SparsemaxLoss,
-    SparsemaxTopKLoss,
     Entmax15Loss,
     Entmax15TopKLoss,
     SparsemaxBisectLoss,
@@ -22,7 +21,7 @@ ys = [torch.max(torch.randn_like(X), dim=1)[1] for X in Xs]
 
 losses = [
     SparsemaxLoss,
-    partial(SparsemaxTopKLoss, k=5),
+    partial(SparsemaxLoss, k=5),
     Entmax15Loss,
     partial(Entmax15TopKLoss, k=5),
     SparsemaxBisectLoss,
