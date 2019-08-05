@@ -125,27 +125,7 @@ class LogSparsemax(nn.Module):
         return torch.log(sparsemax(input, self.dim, self.k))
 
 
-def _entmax_threshold_and_support(input, dim=0):
-    Xsrt, _ = torch.sort(input, descending=True, dim=dim)
-
-    rho = _make_ix_like(input, dim)
-    mean = Xsrt.cumsum(dim) / rho
-    mean_sq = (Xsrt ** 2).cumsum(dim) / rho
-    ss = rho * (mean_sq - mean ** 2)
-    delta = (1 - ss) / rho
-
-    # NOTE this is not exactly the same as in reference algo
-    # Fortunately it seems the clamped values never wrongly
-    # get selected by tau <= sorted_z. Prove this!
-    delta_nz = torch.clamp(delta, 0)
-    tau = mean - torch.sqrt(delta_nz)
-
-    support_size = (tau <= Xsrt).sum(dim).unsqueeze(dim)
-    tau_star = tau.gather(dim, support_size - 1)
-    return tau_star, support_size
-
-
-def _entmax_threshold_and_support_topk(input, dim=0, k=None):
+def _entmax_threshold_and_support(input, dim=0, k=None):
 
     if k is None or k >= input.shape[dim]:  # do full sort
         Xsrt, _ = torch.sort(input, dim=dim, descending=True)
@@ -172,7 +152,7 @@ def _entmax_threshold_and_support_topk(input, dim=0, k=None):
 
         if torch.any(unsolved):
             X_ = _roll_last(input, dim)[unsolved]
-            tau_, ss_ = _entmax_threshold_and_support_topk(X_, dim=-1, k=2 * k)
+            tau_, ss_ = _entmax_threshold_and_support(X_, dim=-1, k=2 * k)
             _roll_last(tau_star, dim)[unsolved] = tau_
             _roll_last(support_size, dim)[unsolved] = ss_
 
@@ -181,14 +161,14 @@ def _entmax_threshold_and_support_topk(input, dim=0, k=None):
 
 class Entmax15Function(Function):
     @classmethod
-    def forward(cls, ctx, X, dim=0):
+    def forward(cls, ctx, X, dim=0, k=None):
         ctx.dim = dim
 
         max_val, _ = X.max(dim=dim, keepdim=True)
         X = X - max_val  # same numerical stability trick as for softmax
         X = X / 2  # divide by 2 to solve actual Entmax
 
-        tau_star, _ = _entmax_threshold_and_support(X, dim)
+        tau_star, _ = _entmax_threshold_and_support(X, dim=dim, k=k)
 
         Y = torch.clamp(X - tau_star, min=0) ** 2
         ctx.save_for_backward(Y)
@@ -202,73 +182,32 @@ class Entmax15Function(Function):
         q = dX.sum(ctx.dim) / gppr.sum(ctx.dim)
         q = q.unsqueeze(ctx.dim)
         dX -= q * gppr
-        return dX, None
-
-
-class Entmax15TopKFunction(Entmax15Function):
-    @classmethod
-    def forward(cls, ctx, X, dim=0, k=100):
-        ctx.dim = dim
-
-        max_val, _ = X.max(dim=dim, keepdim=True)
-        X = X - max_val  # same numerical stability trick as for softmax
-        X = X / 2  # divide by 2 to solve actual Entmax
-
-        tau_star, _ = _entmax_threshold_and_support_topk(X, dim=dim, k=k)
-
-        Y = torch.clamp(X - tau_star, min=0) ** 2
-        ctx.save_for_backward(Y)
-        return Y
-
-    @classmethod
-    def backward(cls, ctx, dY):
-        return super(Entmax15TopKFunction, cls).backward(ctx, dY) + (None,)
+        return dX, None, None
 
 
 entmax15 = Entmax15Function.apply
-entmax15_topk = Entmax15TopKFunction.apply
 
 
 class Entmax15(nn.Module):
 
-    def __init__(self, dim=0):
+    def __init__(self, dim=0, k=None):
         self.dim = dim
+        self.k = k
         super(Entmax15, self).__init__()
 
     def forward(self, X):
-        return entmax15(X, self.dim)
+        return entmax15(X, self.dim, self.k)
 
 
 class LogEntmax15(nn.Module):
 
-    def __init__(self, dim=0):
+    def __init__(self, dim=0, k=None):
         self.dim = dim
+        self.k = k
         super(LogEntmax15, self).__init__()
 
     def forward(self, X):
-        return torch.log(entmax15(X, self.dim))
-
-
-class Entmax15TopK(nn.Module):
-
-    def __init__(self, dim=0, k=100):
-        self.dim = dim
-        self.k = k
-        super(Entmax15TopK, self).__init__()
-
-    def forward(self, X):
-        return entmax15_topk(X, self.dim, self.k)
-
-
-class LogEntmax15TopK(nn.Module):
-
-    def __init__(self, dim=0, k=100):
-        self.dim = dim
-        self.k = k
-        super(LogEntmax15TopK, self).__init__()
-
-    def forward(self, X):
-        return torch.log(entmax15_topk(X, self.dim, self.k))
+        return torch.log(entmax15(X, self.dim, self.k))
 
 
 class LogEntmaxBisect(nn.Module):
@@ -280,7 +219,7 @@ class LogEntmaxBisect(nn.Module):
     def forward(self, X):
         assert X.dim() == 2
 
-        p_star =  entmax_bisect(X, self.alpha, self.n_iter)
+        p_star = entmax_bisect(X, self.alpha, self.n_iter)
         p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
 
         return torch.log(p_star)

@@ -6,7 +6,6 @@ from functools import partial
 from entmax.losses import (
     SparsemaxLoss,
     Entmax15Loss,
-    Entmax15TopKLoss,
     SparsemaxBisectLoss,
     EntmaxBisectLoss,
 )
@@ -23,7 +22,7 @@ losses = [
     SparsemaxLoss,
     partial(SparsemaxLoss, k=5),
     Entmax15Loss,
-    partial(Entmax15TopKLoss, k=5),
+    partial(Entmax15Loss, k=5),
     SparsemaxBisectLoss,
     EntmaxBisectLoss,
 ]
