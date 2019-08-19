@@ -347,9 +347,7 @@ class LogEntmaxBisect(nn.Module):
     def forward(self, X):
         assert X.dim() == 2
 
-        p_star = entmax_bisect(X, self.alpha, self.n_iter)
-        p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
-
+        p_star = entmax_bisect(X, self.alpha, self.n_iter, ensure_sum_one=True)
         return torch.log(p_star)
 
 
@@ -361,7 +359,5 @@ class LogSparsemaxBisect(nn.Module):
     def forward(self, X):
         assert X.dim() == 2
 
-        p_star = sparsemax_bisect(X, self.n_iter)
-        p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
-
+        p_star = sparsemax_bisect(X, self.n_iter, ensure_sum_one=True)
         return torch.log(p_star)

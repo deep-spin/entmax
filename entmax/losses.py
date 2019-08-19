@@ -6,26 +6,6 @@ from entmax.activations import sparsemax, entmax15
 from entmax.root_finding import entmax_bisect, sparsemax_bisect
 
 
-def _fy_backward(ctx, grad_output):
-    p_star, = ctx.saved_tensors
-    grad = grad_output.unsqueeze(1) * p_star
-    return grad
-
-
-# computes Omega(y_true) - Omega(p*)
-def _omega_entmax(p_star, alpha):
-    return (1 - (p_star ** alpha).sum(dim=1)) / (alpha * (alpha - 1))
-
-
-# more efficient specializations
-def _omega_entmax15(p_star):
-    return (1 - (p_star * torch.sqrt(p_star)).sum(dim=1)) / 0.75
-
-
-def _omega_sparsemax(p_star):
-    return (1 - (p_star ** 2).sum(dim=1)) / 2
-
-
 class _GenericLoss(nn.Module):
     def __init__(self, ignore_index=-100, reduction="elementwise_mean"):
         assert reduction in ["elementwise_mean", "sum", "none"]
@@ -50,130 +30,210 @@ class _GenericLoss(nn.Module):
 
 class _GenericLossFunction(Function):
     @classmethod
-    def forward(cls, ctx, X, target):
-        return NotImplemented
+    def forward(cls, ctx, X, target, alpha, proj_args):
+        """
+        X (FloatTensor): n x num_classes
+        target (LongTensor): n, the indices of the target classes
+        """
+        assert X.shape[0] == target.shape[0]
+
+        p_star = cls.project(X, alpha, **proj_args)
+        loss = cls.omega(p_star, alpha)
+
+        p_star.scatter_add_(1, target.unsqueeze(1), torch.full_like(p_star, -1))
+        loss += torch.einsum("ij,ij->i", p_star, X)
+        ctx.save_for_backward(p_star)
+
+        return loss
 
     @classmethod
     def backward(cls, ctx, grad_output):
-        return _fy_backward(ctx, grad_output), None
+        p_star, = ctx.saved_tensors
+        grad = grad_output.unsqueeze(1) * p_star
+        ret = (grad,)
+
+        # pad with as many Nones as needed
+        return ret + (None,) * (1 + cls.n_fwd_args)
 
 
 class SparsemaxLossFunction(_GenericLossFunction):
+
+    n_fwd_args = 1
+
+    @classmethod
+    def project(cls, X, alpha, k):
+        return sparsemax(X, dim=-1, k=k)
+
+    @classmethod
+    def omega(cls, p_star, alpha):
+        return (1 - (p_star ** 2).sum(dim=1)) / 2
+
     @classmethod
     def forward(cls, ctx, X, target, k=None):
-        """
-        X (FloatTensor): n x num_classes
-        target (LongTensor): n, the indices of the target classes
-        """
-        assert X.shape[0] == target.shape[0]
-
-        p_star = sparsemax(X, 1, k)
-        loss = _omega_sparsemax(p_star)
-
-        p_star.scatter_add_(1, target.unsqueeze(1), torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, X)
-
-        ctx.save_for_backward(p_star)
-
-        # loss = torch.clamp(loss, min=0.0)  # needed?
-        return loss
-
-    @classmethod
-    def backward(cls, ctx, grad_output):
-        grad_input = super(SparsemaxLossFunction, cls).backward(ctx, grad_output)
-        return grad_input + (None,)
+        return super().forward(ctx, X, target, alpha=2, proj_args=dict(k=k))
 
 
 class SparsemaxBisectLossFunction(_GenericLossFunction):
+
+    n_fwd_args = 1
+
+    @classmethod
+    def project(cls, X, alpha, n_iter):
+        return sparsemax_bisect(X, n_iter=n_iter)
+
+    @classmethod
+    def omega(cls, p_star, alpha):
+        return (1 - (p_star ** 2).sum(dim=1)) / 2
+
     @classmethod
     def forward(cls, ctx, X, target, n_iter=50):
-        """
-        X (FloatTensor): n x num_classes
-        target (LongTensor): n, the indices of the target classes
-        """
-        assert X.shape[0] == target.shape[0]
-
-        p_star = sparsemax_bisect(X, n_iter)
-
-        # this is onw done directly in sparsemax_bisect
-        # p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
-
-        loss = _omega_sparsemax(p_star)
-
-        p_star.scatter_add_(1, target.unsqueeze(1), torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, X)
-
-        ctx.save_for_backward(p_star)
-
-        # loss = torch.clamp(loss, min=0.0)  # needed?
-        return loss
-
-    @classmethod
-    def backward(cls, ctx, grad_output):
-        grad_input = super(SparsemaxBisectLossFunction, cls).backward(ctx, grad_output)
-        return grad_input + (None,)
+        return super().forward(ctx, X, target, alpha=2, proj_args=dict(n_iter=n_iter))
 
 
 class Entmax15LossFunction(_GenericLossFunction):
+
+    n_fwd_args = 1
+
+    @classmethod
+    def project(cls, X, alpha, k=None):
+        return entmax15(X, dim=-1, k=k)
+
+    @classmethod
+    def omega(cls, p_star, alpha):
+        return (1 - (p_star * torch.sqrt(p_star)).sum(dim=1)) / 0.75
+
     @classmethod
     def forward(cls, ctx, X, target, k=None):
-        """
-        X (FloatTensor): n x num_classes
-        target (LongTensor): n, the indices of the target classes
-        """
-        assert X.shape[0] == target.shape[0]
-
-        p_star = entmax15(X, 1, k)
-        loss = _omega_entmax15(p_star)
-
-        p_star.scatter_add_(1, target.unsqueeze(1), torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, X)
-
-        ctx.save_for_backward(p_star)
-
-        # loss = torch.clamp(loss, min=0.0)  # needed?
-        return loss
-
-    @classmethod
-    def backward(cls, ctx, grad_output):
-        grad_input = super(Entmax15LossFunction, cls).backward(ctx, grad_output)
-        return grad_input + (None,)
+        return super().forward(ctx, X, target, alpha=1.5, proj_args=dict(k=k))
 
 
 class EntmaxBisectLossFunction(_GenericLossFunction):
+
+    n_fwd_args = 2
+
+    @classmethod
+    def project(cls, X, alpha, n_iter):
+        return entmax_bisect(X, alpha=alpha, n_iter=n_iter, ensure_sum_one=True)
+
+    @classmethod
+    def omega(cls, p_star, alpha):
+        return (1 - (p_star ** alpha).sum(dim=1)) / (alpha * (alpha - 1))
+
     @classmethod
     def forward(cls, ctx, X, target, alpha=1.5, n_iter=50):
-        """
-        X (FloatTensor): n x num_classes
-        target (LongTensor): n, the indices of the target classes
-        """
-        assert X.shape[0] == target.shape[0]
-
-        p_star = entmax_bisect(X, alpha, n_iter)
-
-        # this is now done directly in entmax_bisect
-        # p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
-
-        loss = _omega_entmax(p_star, alpha)
-
-        p_star.scatter_add_(1, target.unsqueeze(1), torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, X)
-
-        ctx.save_for_backward(p_star)
-
-        # loss = torch.clamp(loss, min=0.0)  # needed?
-        return loss
-
-    @classmethod
-    def backward(cls, ctx, grad_output):
-        grad_input = super(EntmaxBisectLossFunction, cls).backward(ctx, grad_output)
-        return grad_input + (None, None)
+        return super().forward(ctx, X, target, alpha, proj_args=dict(n_iter=n_iter))
 
 
-sparsemax_loss = SparsemaxLossFunction.apply
-sparsemax_bisect_loss = SparsemaxBisectLossFunction.apply
-entmax15_loss = Entmax15LossFunction.apply
-entmax_bisect_loss = EntmaxBisectLossFunction.apply
+def sparsemax_loss(X, target, k=None):
+    """sparsemax loss: sparse alternative to cross-entropy
+
+    Computed using a partial sorting strategy.
+
+    Parameters
+    ----------
+    X : torch.Tensor, shape=(n_samples, n_classes)
+        The input 2D tensor of predicted scores
+
+    target : torch.LongTensor, shape=(n_samples,)
+        The ground truth labels, 0 <= target < n_classes.
+
+    k : int or None
+        number of largest elements to partial-sort over. For optimal
+        performance, should be slightly bigger than the expected number of
+        nonzeros in the solution. If the solution is more than k-sparse,
+        this function is recursively called with a 2*k schedule.
+        If `None`, full sorting is performed from the beginning.
+
+    Returns
+    -------
+    losses, torch.Tensor, shape=(n_samples,)
+        The loss incurred at each sample.
+    """
+    return SparsemaxLossFunction.apply(X, target, k)
+
+
+def sparsemax_bisect_loss(X, target, n_iter=50):
+    """sparsemax loss: sparse alternative to cross-entropy
+
+    Computed using bisection.
+
+    Parameters
+    ----------
+    X : torch.Tensor, shape=(n_samples, n_classes)
+        The input 2D tensor of predicted scores
+
+    target : torch.LongTensor, shape=(n_samples,)
+        The ground truth labels, 0 <= target < n_classes.
+
+    n_iter : int
+        Number of bisection iterations. For float32, 24 iterations should
+        suffice for machine precision.
+
+    Returns
+    -------
+    losses, torch.Tensor, shape=(n_samples,)
+        The loss incurred at each sample.
+    """
+    return SparsemaxBisectLossFunction.apply(X, target, n_iter)
+
+
+def entmax15_loss(X, target, k=None):
+    """1.5-entmax loss: sparse alternative to cross-entropy
+
+    Computed using a partial sorting strategy.
+
+    Parameters
+    ----------
+    X : torch.Tensor, shape=(n_samples, n_classes)
+        The input 2D tensor of predicted scores
+
+    target : torch.LongTensor, shape=(n_samples,)
+        The ground truth labels, 0 <= target < n_classes.
+
+    k : int or None
+        number of largest elements to partial-sort over. For optimal
+        performance, should be slightly bigger than the expected number of
+        nonzeros in the solution. If the solution is more than k-sparse,
+        this function is recursively called with a 2*k schedule.
+        If `None`, full sorting is performed from the beginning.
+
+    Returns
+    -------
+    losses, torch.Tensor, shape=(n_samples,)
+        The loss incurred at each sample.
+    """
+    return Entmax15LossFunction.apply(X, target, k)
+
+
+def entmax_bisect_loss(X, target, alpha=1.5, n_iter=50):
+    """alpha-entmax loss: sparse alternative to cross-entropy
+
+    Computed using bisection, supporting arbitrary alpha > 1.
+
+    Parameters
+    ----------
+    X : torch.Tensor, shape=(n_samples, n_classes)
+        The input 2D tensor of predicted scores
+
+    target : torch.LongTensor, shape=(n_samples,)
+        The ground truth labels, 0 <= target < n_classes.
+
+    alpha : float or torch.Tensor
+        Tensor of alpha parameters (> 1) to use for each row of X. If scalar
+        or python float, the same value is used for all rows. A value of
+        alpha=2 corresponds to sparsemax, and alpha=1 corresponds to softmax
+        (but computing it this way is likely unstable).
+
+    n_iter : int
+        Number of bisection iterations. For float32, 24 iterations should
+        suffice for machine precision.
+
+    Returns
+    -------
+    losses, torch.Tensor, shape=(n_samples,)
+        The loss incurred at each sample.
+    """
+    return EntmaxBisectLossFunction.apply(X, target, alpha, n_iter)
 
 
 class SparsemaxBisectLoss(_GenericLoss):
