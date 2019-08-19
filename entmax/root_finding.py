@@ -12,13 +12,13 @@ from torch.autograd import Function
 
 
 class EntmaxBisectFunction(Function):
-
     @classmethod
     def _gp(cls, x, alpha):
         return x ** (alpha - 1)
 
     @classmethod
-    def _gp_inv(cls, y, alpha): return y ** (1 / (alpha - 1))
+    def _gp_inv(cls, y, alpha):
+        return y ** (1 / (alpha - 1))
 
     @classmethod
     def _p(cls, X, alpha):
@@ -96,7 +96,6 @@ class EntmaxBisectFunction(Function):
 
 # slightly more efficient special case for sparsemax
 class SparsemaxBisectFunction(EntmaxBisectFunction):
-
     @classmethod
     def _gp(cls, x, alpha):
         return x
@@ -104,7 +103,6 @@ class SparsemaxBisectFunction(EntmaxBisectFunction):
     @classmethod
     def _gp_inv(cls, y, alpha):
         return y
-
 
     @classmethod
     def _p(cls, x, alpha):
@@ -198,4 +196,3 @@ def sparsemax_bisect(X, n_iter=50, ensure_sum_one=True):
         The projection result, such that P.sum(dim=-1) == 1 elementwise.
     """
     return SparsemaxBisectFunction.apply(X, n_iter, ensure_sum_one)
-
