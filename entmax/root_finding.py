@@ -9,8 +9,9 @@ def assert_equal(*args):
     """
     arguments = (arg for arg in args)
     first = next(arguments)
-    assert all(arg == first for arg in arguments), \
-        "Not all arguments have the same value: " + str(args)
+    assert all(
+        arg == first for arg in arguments
+    ), "Not all arguments have the same value: " + str(args)
 
 
 def _p(x, tau):
@@ -25,13 +26,12 @@ def _entmax_gp_inv(y, alpha):
     return y ** (1 / (alpha - 1))
 
 
-def _entmax_p(X,  alpha):
+def _entmax_p(X, alpha):
     return _entmax_gp_inv(torch.clamp(X, min=0), alpha)
 
 
 # TODO: support other dims other than 1. The code likely same, but needs tested
 class SparsemaxBisectFunction(Function):
-
     @staticmethod
     def forward(ctx, X, n_iter=50, ensure_sum_one=True):
 
@@ -77,7 +77,6 @@ class SparsemaxBisectFunction(Function):
 
 
 class EntmaxBisectFunction(Function):
-
     @staticmethod
     def forward(ctx, X, alpha=1.5, n_iter=50, ensure_sum_one=True):
 
