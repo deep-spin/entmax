@@ -4,9 +4,11 @@ https://arxiv.org/pdf/1905.05702 for detailed description.
 
 This builds on previous work with sparsemax (Martins & Astudillo, 2016).
 See https://arxiv.org/pdf/1602.02068.
-
-By Ben Peters and Vlad Niculae
 """
+
+# Author: Ben Peters
+# Author: Vlad Niculae <vlad@vene.ro>
+# License: MIT
 
 import torch
 import torch.nn as nn
