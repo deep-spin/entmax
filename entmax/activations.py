@@ -142,7 +142,6 @@ def _entmax_threshold_and_support(X, dim=0, k=None):
 
 
 class SparsemaxFunction(Function):
-
     @classmethod
     def forward(cls, ctx, X, dim=0, k=None):
         ctx.dim = dim
@@ -167,7 +166,6 @@ class SparsemaxFunction(Function):
 
 
 class Entmax15Function(Function):
-
     @classmethod
     def forward(cls, ctx, X, dim=0, k=None):
         ctx.dim = dim
@@ -258,7 +256,6 @@ def entmax15(X, dim=0, k=None):
 
 
 class Sparsemax(nn.Module):
-
     def __init__(self, dim=0, k=None):
         """sparsemax: normalizing sparse transform (a la softmax).
 
@@ -287,7 +284,6 @@ class Sparsemax(nn.Module):
 
 
 class Entmax15(nn.Module):
-
     def __init__(self, dim=0, k=None):
         """1.5-entmax: normalizing sparse transform (a la softmax).
 
@@ -319,8 +315,8 @@ class Entmax15(nn.Module):
 
 # Boilerplate log-* classes, needed for beam search code.
 
-class LogSparsemax(nn.Module):
 
+class LogSparsemax(nn.Module):
     def __init__(self, dim=0, k=None):
         self.dim = dim
         self.k = None
@@ -331,7 +327,6 @@ class LogSparsemax(nn.Module):
 
 
 class LogEntmax15(nn.Module):
-
     def __init__(self, dim=0, k=None):
         self.dim = dim
         self.k = k

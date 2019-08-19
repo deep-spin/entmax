@@ -15,12 +15,12 @@ funcs = [
 ]
 
 
-@pytest.mark.parametrize('func', funcs)
-@pytest.mark.parametrize('dtype', (torch.float32, torch.float64))
+@pytest.mark.parametrize("func", funcs)
+@pytest.mark.parametrize("dtype", (torch.float32, torch.float64))
 def test_mask(func, dtype):
     torch.manual_seed(42)
     x = torch.randn(2, 6, dtype=dtype)
-    x[:, 3:] = -float('inf')
+    x[:, 3:] = -float("inf")
     x0 = x[:, :3]
 
     y = func(x)
@@ -31,11 +31,11 @@ def test_mask(func, dtype):
     assert torch.allclose(y, torch.zeros_like(y))
 
 
-@pytest.mark.parametrize('alpha', (1.25, 1.5, 1.75, 2.25))
+@pytest.mark.parametrize("alpha", (1.25, 1.5, 1.75, 2.25))
 def test_mask_alphas(alpha):
     torch.manual_seed(42)
     x = torch.randn(2, 6)
-    x[:, 3:] = -float('inf')
+    x[:, 3:] = -float("inf")
     x0 = x[:, :3]
 
     y = entmax_bisect(x, alpha)

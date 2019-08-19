@@ -11,8 +11,8 @@ from entmax.activations import (
 )
 
 
-@pytest.mark.parametrize('dim', (0, 1, 2))
-@pytest.mark.parametrize('Map', (Sparsemax, Entmax15))
+@pytest.mark.parametrize("dim", (0, 1, 2))
+@pytest.mark.parametrize("Map", (Sparsemax, Entmax15))
 def test_mapping(dim, Map):
     f = Map(dim=dim, k=3)
 
@@ -21,8 +21,8 @@ def test_mapping(dim, Map):
         gradcheck(f, (x,))
 
 
-@pytest.mark.parametrize('dim', (0, 1, 2))
-@pytest.mark.parametrize('coef', (0.00001, 0.5, 10000))
+@pytest.mark.parametrize("dim", (0, 1, 2))
+@pytest.mark.parametrize("coef", (0.00001, 0.5, 10000))
 def test_entmax_topk(dim, coef):
     x = coef * torch.randn(10, 11, 12)
     tau1, supp1 = _entmax_threshold_and_support(x, dim=dim, k=None)
@@ -32,9 +32,9 @@ def test_entmax_topk(dim, coef):
     assert torch.all(supp1 == supp2)
 
 
-@pytest.mark.parametrize('dim', (0, 1, 2))
-@pytest.mark.parametrize('coef', (0.00001, 0.5, 10000))
-@pytest.mark.parametrize('k', (5, 30))
+@pytest.mark.parametrize("dim", (0, 1, 2))
+@pytest.mark.parametrize("coef", (0.00001, 0.5, 10000))
+@pytest.mark.parametrize("k", (5, 30))
 def test_sparsemax_topk(dim, coef, k):
 
     x = coef * torch.randn(10, 11, 12)
