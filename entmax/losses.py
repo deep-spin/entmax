@@ -36,8 +36,8 @@ class _GenericLoss(nn.Module):
         self.ignore_index = ignore_index
         super(_GenericLoss, self).__init__()
 
-    def forward(self, input, target):
-        loss = self.loss(input, target)
+    def forward(self, X, target):
+        loss = self.loss(X, target)
         if self.ignore_index >= 0:
             ignored_positions = target == self.ignore_index
             size = float((target.size(0) - ignored_positions.sum()).item())
@@ -53,7 +53,7 @@ class _GenericLoss(nn.Module):
 
 class _GenericLossFunction(Function):
     @classmethod
-    def forward(cls, ctx, input, target):
+    def forward(cls, ctx, X, target):
         return NotImplemented
 
     @classmethod
@@ -64,19 +64,19 @@ class _GenericLossFunction(Function):
 class SparsemaxLossFunction(_GenericLossFunction):
 
     @classmethod
-    def forward(cls, ctx, input, target, k=None):
+    def forward(cls, ctx, X, target, k=None):
         """
-        input (FloatTensor): n x num_classes
+        X (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
         """
-        assert input.shape[0] == target.shape[0]
+        assert X.shape[0] == target.shape[0]
 
-        p_star = sparsemax(input, 1, k)
+        p_star = sparsemax(X, 1, k)
         loss = _omega_sparsemax(p_star)
 
         p_star.scatter_add_(1, target.unsqueeze(1),
                             torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, input)
+        loss += torch.einsum("ij,ij->i", p_star, X)
 
         ctx.save_for_backward(p_star)
 
@@ -92,14 +92,14 @@ class SparsemaxLossFunction(_GenericLossFunction):
 class SparsemaxBisectLossFunction(_GenericLossFunction):
 
     @classmethod
-    def forward(cls, ctx, input, target, n_iter=50):
+    def forward(cls, ctx, X, target, n_iter=50):
         """
-        input (FloatTensor): n x num_classes
+        X (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
         """
-        assert input.shape[0] == target.shape[0]
+        assert X.shape[0] == target.shape[0]
 
-        p_star = sparsemax_bisect(input, n_iter)
+        p_star = sparsemax_bisect(X, n_iter)
 
         # this is onw done directly in sparsemax_bisect
         # p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
@@ -108,7 +108,7 @@ class SparsemaxBisectLossFunction(_GenericLossFunction):
 
         p_star.scatter_add_(1, target.unsqueeze(1),
                             torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, input)
+        loss += torch.einsum("ij,ij->i", p_star, X)
 
         ctx.save_for_backward(p_star)
 
@@ -124,19 +124,19 @@ class SparsemaxBisectLossFunction(_GenericLossFunction):
 class Entmax15LossFunction(_GenericLossFunction):
 
     @classmethod
-    def forward(cls, ctx, input, target, k=None):
+    def forward(cls, ctx, X, target, k=None):
         """
-        input (FloatTensor): n x num_classes
+        X (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
         """
-        assert input.shape[0] == target.shape[0]
+        assert X.shape[0] == target.shape[0]
 
-        p_star = entmax15(input, 1, k)
+        p_star = entmax15(X, 1, k)
         loss = _omega_entmax15(p_star)
 
         p_star.scatter_add_(1, target.unsqueeze(1),
                             torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, input)
+        loss += torch.einsum("ij,ij->i", p_star, X)
 
         ctx.save_for_backward(p_star)
 
@@ -152,14 +152,14 @@ class Entmax15LossFunction(_GenericLossFunction):
 class EntmaxBisectLossFunction(_GenericLossFunction):
 
     @classmethod
-    def forward(cls, ctx, input, target, alpha=1.5, n_iter=50):
+    def forward(cls, ctx, X, target, alpha=1.5, n_iter=50):
         """
-        input (FloatTensor): n x num_classes
+        X (FloatTensor): n x num_classes
         target (LongTensor): n, the indices of the target classes
         """
-        assert input.shape[0] == target.shape[0]
+        assert X.shape[0] == target.shape[0]
 
-        p_star = entmax_bisect(input, alpha, n_iter)
+        p_star = entmax_bisect(X, alpha, n_iter)
 
         # this is now done directly in entmax_bisect
         # p_star /= p_star.sum(dim=1).unsqueeze(dim=1)
@@ -168,7 +168,7 @@ class EntmaxBisectLossFunction(_GenericLossFunction):
 
         p_star.scatter_add_(1, target.unsqueeze(1),
                             torch.full_like(p_star, -1))
-        loss += torch.einsum("ij,ij->i", p_star, input)
+        loss += torch.einsum("ij,ij->i", p_star, X)
 
         ctx.save_for_backward(p_star)
 
@@ -194,8 +194,8 @@ class SparsemaxBisectLoss(_GenericLoss):
         self.n_iter = n_iter
         super(SparsemaxBisectLoss, self).__init__(weight, ignore_index, reduction)
 
-    def loss(self, input, target):
-        return sparsemax_bisect_loss(input, target, self.n_iter)
+    def loss(self, X, target):
+        return sparsemax_bisect_loss(X, target, self.n_iter)
 
 
 class SparsemaxLoss(_GenericLoss):
@@ -205,8 +205,8 @@ class SparsemaxLoss(_GenericLoss):
         self.k = k
         super(SparsemaxLoss, self).__init__(weight, ignore_index, reduction)
 
-    def loss(self, input, target):
-        return sparsemax_loss(input, target, self.k)
+    def loss(self, X, target):
+        return sparsemax_loss(X, target, self.k)
 
 
 class EntmaxBisectLoss(_GenericLoss):
@@ -217,8 +217,8 @@ class EntmaxBisectLoss(_GenericLoss):
         self.n_iter = n_iter
         super(EntmaxBisectLoss, self).__init__(weight, ignore_index, reduction)
 
-    def loss(self, input, target):
-        return entmax_bisect_loss(input, target, self.alpha, self.n_iter)
+    def loss(self, X, target):
+        return entmax_bisect_loss(X, target, self.alpha, self.n_iter)
 
 
 class Entmax15Loss(_GenericLoss):
@@ -228,5 +228,5 @@ class Entmax15Loss(_GenericLoss):
         self.k = k
         super(Entmax15Loss, self).__init__(weight, ignore_index, reduction)
 
-    def loss(self, input, target):
-        return entmax15_loss(input, target, self.k)
+    def loss(self, X, target):
+        return entmax15_loss(X, target, self.k)
