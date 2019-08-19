@@ -3,8 +3,8 @@
 
 --------------------------------------------------------------------------------
 
-This package presents a pytorch implementation of entmax and entmax losses:
-an sparse family of probability mappings and corresponding loss functions,
+This package provides a pytorch implementation of entmax and entmax losses:
+a sparse family of probability mappings and corresponding loss functions,
 generalizing softmax / cross-entropy.
 
 *Features:*
@@ -52,4 +52,3 @@ Further reading:
 
   - Blondel, Martins, and Niculae, 2019. [Learning with Fenchel-Young Losses](https://arxiv.org/abs/1901.02324).
   - Martins and Astudillo, 2016. [From Softmax to Sparsemax: A Sparse Model of Attention and Multi-Label Classification](https://arxiv.org/abs/1602.02068).
-
