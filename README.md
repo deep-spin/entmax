@@ -10,6 +10,7 @@ generalizing softmax / cross-entropy.
 *Features:*
   - Exact partial-sort algorithms for 1.5-entmax and 2-entmax (sparsemax).
   - A bisection-based algorithm for generic alpha-entmax.
+  - Gradients w.r.t. alpha for adaptive, learned sparsity!
 
 *Requirements:* python 3, pytorch >= 1.0 (and pytest for unit tests)
 
@@ -34,7 +35,7 @@ In [7]: entmax15(x, dim=0)
 Out[7]: tensor([0.0000, 0.3260, 0.6740])
 ```
 
-## Citation
+## Citations
 
 [Sparse Sequence-to-Sequence Models](https://www.aclweb.org/anthology/P19-1146)
 
@@ -45,6 +46,17 @@ Out[7]: tensor([0.0000, 0.3260, 0.6740])
   booktitle = {Proc. ACL},
   year      = {2019},
   url       = {https://www.aclweb.org/anthology/P19-1146}
+}
+```
+
+Adaptively Sparse Transformers
+
+```
+@inproceedings{correia19adaptively,
+  author    = {Correia, Gon\c{c}alo M and Niculae, Vlad and Martins, Andr{\'e} FT},
+  title     = {Adaptively Sparse Transformers},
+  booktitle = {Proc. EMNLP-IJCNLP (to appear)},
+  year      = {2019},
 }
 ```
 
