@@ -13,10 +13,9 @@ See https://arxiv.org/pdf/1602.02068.
 import torch
 import torch.nn as nn
 from torch.autograd import Function
-from entmax.root_finding import entmax_bisect, sparsemax_bisect
 
 
-def _make_ix_like(X, dim=0):
+def _make_ix_like(X, dim):
     d = X.size(dim)
     rho = torch.arange(1, d + 1, device=X.device, dtype=X.dtype)
     view = [1] * X.dim()
@@ -34,7 +33,7 @@ def _roll_last(X, dim):
     return X.permute(perm)
 
 
-def _sparsemax_threshold_and_support(X, dim=0, k=None):
+def _sparsemax_threshold_and_support(X, dim=-1, k=None):
     """Core computation for sparsemax: optimal threshold and support size.
 
     Parameters
@@ -85,7 +84,7 @@ def _sparsemax_threshold_and_support(X, dim=0, k=None):
     return tau, support_size
 
 
-def _entmax_threshold_and_support(X, dim=0, k=None):
+def _entmax_threshold_and_support(X, dim=-1, k=None):
     """Core computation for 1.5-entmax: optimal threshold and support size.
 
     Parameters
@@ -145,7 +144,7 @@ def _entmax_threshold_and_support(X, dim=0, k=None):
 
 class SparsemaxFunction(Function):
     @classmethod
-    def forward(cls, ctx, X, dim=0, k=None):
+    def forward(cls, ctx, X, dim=-1, k=None):
         ctx.dim = dim
         max_val, _ = X.max(dim=dim, keepdim=True)
         X = X - max_val  # same numerical stability trick as softmax
@@ -193,7 +192,7 @@ class Entmax15Function(Function):
         return dX, None, None
 
 
-def sparsemax(X, dim=0, k=None):
+def sparsemax(X, dim=-1, k=None):
     """sparsemax: normalizing sparse transform (a la softmax).
 
     Solves the projection:
@@ -224,7 +223,7 @@ def sparsemax(X, dim=0, k=None):
     return SparsemaxFunction.apply(X, dim, k)
 
 
-def entmax15(X, dim=0, k=None):
+def entmax15(X, dim=-1, k=None):
     """1.5-entmax: normalizing sparse transform (a la softmax).
 
     Solves the optimization problem:
@@ -258,7 +257,7 @@ def entmax15(X, dim=0, k=None):
 
 
 class Sparsemax(nn.Module):
-    def __init__(self, dim=0, k=None):
+    def __init__(self, dim=-1, k=None):
         """sparsemax: normalizing sparse transform (a la softmax).
 
         Solves the projection:
@@ -282,11 +281,11 @@ class Sparsemax(nn.Module):
         super(Sparsemax, self).__init__()
 
     def forward(self, X):
-        return sparsemax(X, self.dim, self.k)
+        return sparsemax(X, dim=self.dim, k=self.k)
 
 
 class Entmax15(nn.Module):
-    def __init__(self, dim=0, k=None):
+    def __init__(self, dim=-1, k=None):
         """1.5-entmax: normalizing sparse transform (a la softmax).
 
         Solves the optimization problem:
@@ -312,52 +311,4 @@ class Entmax15(nn.Module):
         super(Entmax15, self).__init__()
 
     def forward(self, X):
-        return entmax15(X, self.dim, self.k)
-
-
-# Boilerplate log-* classes, needed for beam search code.
-
-
-class LogSparsemax(nn.Module):
-    def __init__(self, dim=0, k=None):
-        self.dim = dim
-        self.k = None
-        super(LogSparsemax, self).__init__()
-
-    def forward(self, X):
-        return torch.log(sparsemax(X, self.dim, self.k))
-
-
-class LogEntmax15(nn.Module):
-    def __init__(self, dim=0, k=None):
-        self.dim = dim
-        self.k = k
-        super(LogEntmax15, self).__init__()
-
-    def forward(self, X):
-        return torch.log(entmax15(X, self.dim, self.k))
-
-
-class LogEntmaxBisect(nn.Module):
-    def __init__(self, alpha=1.5, n_iter=50):
-        self.alpha = alpha
-        self.n_iter = n_iter
-        super(LogEntmaxBisect, self).__init__()
-
-    def forward(self, X):
-        assert X.dim() == 2
-
-        p_star = entmax_bisect(X, self.alpha, self.n_iter, ensure_sum_one=True)
-        return torch.log(p_star)
-
-
-class LogSparsemaxBisect(nn.Module):
-    def __init__(self, n_iter=50):
-        self.n_iter = n_iter
-        super(LogSparsemaxBisect, self).__init__()
-
-    def forward(self, X):
-        assert X.dim() == 2
-
-        p_star = sparsemax_bisect(X, self.n_iter, ensure_sum_one=True)
-        return torch.log(p_star)
+        return entmax15(X, dim=self.dim, k=self.k)
