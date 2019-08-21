@@ -21,7 +21,7 @@ In [1]: import torch
 
 In [2]: from torch.nn.functional import softmax
 
-In [2]: from entmax.activations import sparsemax, entmax15, entmax_bisect
+In [2]: from entmax import sparsemax, entmax15, entmax_bisect
 
 In [4]: x = torch.tensor([-2, 0, 0.5])
 
