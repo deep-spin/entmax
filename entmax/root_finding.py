@@ -112,8 +112,8 @@ class SparsemaxBisectFunction(EntmaxBisectFunction):
     def forward(cls, ctx, X, n_iter=50, ensure_sum_one=True):
         return super().forward(ctx, X, alpha=2, n_iter=50, ensure_sum_one=True)
 
-    @staticmethod
-    def backward(ctx, dY):
+    @classmethod
+    def backward(cls, ctx, dY):
         Y, = ctx.saved_tensors
         gppr = (Y > 0).to(dtype=dY.dtype)
         dX = dY * gppr
