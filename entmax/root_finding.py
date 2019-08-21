@@ -129,7 +129,7 @@ class SparsemaxBisectFunction(EntmaxBisectFunction):
         return dX, None, None, None
 
 
-def entmax_bisect(X, alpha=1.5, dim=1, n_iter=50, ensure_sum_one=True):
+def entmax_bisect(X, alpha=1.5, dim=-1, n_iter=50, ensure_sum_one=True):
     """alpha-entmax: normalizing sparse transform (a la softmax).
 
     Solves the optimization problem:
