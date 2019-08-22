@@ -12,7 +12,10 @@ from entmax.losses import (
 
 
 # make data
-Xs = [torch.randn(4, 10, dtype=torch.float64, requires_grad=True) for _ in range(10)]
+Xs = [
+    torch.randn(4, 10, dtype=torch.float64, requires_grad=True)
+    for _ in range(5)
+]
 
 ys = [torch.max(torch.randn_like(X), dim=1)[1] for X in Xs]
 
