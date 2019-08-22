@@ -6,4 +6,5 @@ setup(name='entmax',
       description=("The entmax mapping and its loss, a family of sparse "
                    "softmax alternatives."),
       license="MIT",
+      packages=['entmax'],
       python_requires=">=3.5")
