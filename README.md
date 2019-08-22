@@ -1,4 +1,7 @@
+[![Build Status](https://dev.azure.com/zephyr14/entmax/_apis/build/status/deep-spin.entmax?branchName=master)](https://dev.azure.com/zephyr14/entmax/_build/latest?definitionId=1&branchName=master)
+
 # entmax
+
 <img src="entmax.png" />
 
 --------------------------------------------------------------------------------
