@@ -116,7 +116,9 @@ class SparsemaxBisectFunction(EntmaxBisectFunction):
 
     @classmethod
     def forward(cls, ctx, X, dim=-1, n_iter=50, ensure_sum_one=True):
-        return super().forward(ctx, X, alpha=2, dim=dim, n_iter=50, ensure_sum_one=True)
+        return super().forward(
+            ctx, X, alpha=2, dim=dim, n_iter=50, ensure_sum_one=True
+        )
 
     @classmethod
     def backward(cls, ctx, dY):
@@ -234,7 +236,7 @@ class SparsemaxBisect(nn.Module):
 
 
 class EntmaxBisect(nn.Module):
-    def __init__(self, dim=-1, n_iter=50):
+    def __init__(self, alpha=1.5, dim=-1, n_iter=50):
         """alpha-entmax: normalizing sparse map (a la softmax) via bisection.
 
         Solves the optimization problem:
@@ -246,6 +248,14 @@ class EntmaxBisect(nn.Module):
 
         Parameters
         ----------
+        alpha : float or torch.Tensor
+            Tensor of alpha parameters (> 1) to use. If scalar
+            or python float, the same value is used for all rows, otherwise,
+            it must have shape (or be expandable to)
+            alpha.shape[j] == (X.shape[j] if j != dim else 1)
+            A value of alpha=2 corresponds to sparsemax, and alpha=1 corresponds
+            to softmax (but computing it this way is likely unstable).
+
         dim : int
             The dimension along which to apply alpha-entmax.
 
@@ -256,7 +266,10 @@ class EntmaxBisect(nn.Module):
         """
         self.dim = dim
         self.n_iter = n_iter
+        self.alpha = alpha
         super().__init__()
 
     def forward(self, X, alpha):
-        return entmax_bisect(X, alpha=alpha, dim=self.dim, n_iter=self.n_iter)
+        return entmax_bisect(
+            X, alpha=self.alpha, dim=self.dim, n_iter=self.n_iter
+        )

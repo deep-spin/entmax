@@ -87,7 +87,9 @@ class SparsemaxBisectLossFunction(_GenericLossFunction):
 
     @classmethod
     def forward(cls, ctx, X, target, n_iter=50):
-        return super().forward(ctx, X, target, alpha=2, proj_args=dict(n_iter=n_iter))
+        return super().forward(
+            ctx, X, target, alpha=2, proj_args=dict(n_iter=n_iter)
+        )
 
 
 class Entmax15LossFunction(_GenericLossFunction):
@@ -121,7 +123,9 @@ class EntmaxBisectLossFunction(_GenericLossFunction):
 
     @classmethod
     def forward(cls, ctx, X, target, alpha=1.5, n_iter=50):
-        return super().forward(ctx, X, target, alpha, proj_args=dict(n_iter=n_iter))
+        return super().forward(
+            ctx, X, target, alpha, proj_args=dict(n_iter=n_iter)
+        )
 
 
 def sparsemax_loss(X, target, k=None):
@@ -237,7 +241,9 @@ def entmax_bisect_loss(X, target, alpha=1.5, n_iter=50):
 
 
 class SparsemaxBisectLoss(_GenericLoss):
-    def __init__(self, n_iter=50, ignore_index=-100, reduction="elementwise_mean"):
+    def __init__(
+        self, n_iter=50, ignore_index=-100, reduction="elementwise_mean"
+    ):
         self.n_iter = n_iter
         super(SparsemaxBisectLoss, self).__init__(ignore_index, reduction)
 
@@ -256,7 +262,11 @@ class SparsemaxLoss(_GenericLoss):
 
 class EntmaxBisectLoss(_GenericLoss):
     def __init__(
-        self, alpha=1.5, n_iter=50, ignore_index=-100, reduction="elementwise_mean"
+        self,
+        alpha=1.5,
+        n_iter=50,
+        ignore_index=-100,
+        reduction="elementwise_mean",
     ):
         self.alpha = alpha
         self.n_iter = n_iter
