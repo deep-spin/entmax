@@ -1,0 +1,40 @@
+# Python package
+# Create and test a Python package on multiple Python versions.
+# Add steps that analyze code, save the dist with the build record, publish to a PyPI-compatible index, and more:
+# https://docs.microsoft.com/azure/devops/pipelines/languages/python
+
+trigger:
+- master
+
+pr:
+- master
+
+pool:
+  vmImage: 'ubuntu-16.04'
+
+strategy:
+  matrix:
+    Python35Torch100:
+      python.version: '3.5'
+      pytorch.version: '1.0.0'
+
+    Python37Torch120:
+      python.version: '3.7'
+      pytorch.version: '1.2.0'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '$(python.version)'
+  displayName: 'Use Python $(python.version)'
+
+- script: |
+    python -m pip install --upgrade pip
+    pip install numpy
+    pip install torch==$(pytorch.version) -f https://download.pytorch.org/whl/cpu/torch_stable.html
+  displayName: 'Install dependencies'
+
+- script: |
+    pip install pytest pytest-azurepipelines
+    pytest --pyargs entmax
+  displayName: 'pytest'
