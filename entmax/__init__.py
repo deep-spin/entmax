@@ -1,3 +1,5 @@
+__version__ = "1.0.dev0"
+
 from entmax.activations import sparsemax, entmax15, Sparsemax, Entmax15
 from entmax.root_finding import (
     sparsemax_bisect,
