@@ -29,7 +29,7 @@ class EntmaxBisectFunction(Function):
     def forward(cls, ctx, X, alpha=1.5, dim=-1, n_iter=50, ensure_sum_one=True):
 
         if not isinstance(alpha, torch.Tensor):
-            alpha = torch.tensor(alpha, dtype=X.dtype)
+            alpha = torch.tensor(alpha, dtype=X.dtype, device=X.device)
 
         alpha_shape = list(X.shape)
         alpha_shape[dim] = 1
