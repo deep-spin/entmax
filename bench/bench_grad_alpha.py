@@ -110,6 +110,8 @@ def main():
 
     X = torch.randn(opt.batch_size, opt.dim, device=opt.device)
 
+    torch.cuda.synchronize()
+    torch.cuda.synchronize()
     print("softmax", bench(MappingBencher(softmax, X)))
     print("sparsemax", bench(MappingBencher(sparsemax, X)))
     print("entmax15", bench(MappingBencher(entmax15, X)))
