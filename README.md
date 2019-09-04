@@ -81,7 +81,7 @@ pip install entmax
 }
 ```
 
-Adaptively Sparse Transformers
+[Adaptively Sparse Transformers](https://arxiv.org/pdf/1909.00015.pdf)
 
 ```
 @inproceedings{correia19adaptively,
