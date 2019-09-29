@@ -14,17 +14,22 @@ class _GenericLoss(nn.Module):
         super(_GenericLoss, self).__init__()
 
     def forward(self, X, target):
+        if self.ignore_index is not None:
+            num_samples = target.size(0)
+            valid_positions = target != self.ignore_index
+            target = target[valid_positions]
+            X = X[valid_positions]
+
         loss = self.loss(X, target)
-        if self.ignore_index >= 0:
-            ignored_positions = target == self.ignore_index
-            size = float((target.size(0) - ignored_positions.sum()).item())
-            loss.masked_fill_(ignored_positions, 0.0)
-        else:
-            size = float(target.size(0))
+
+        if self.reduction == "none" and self.ignore_index is not None:
+            nonzero_loss = loss
+            loss = torch.zeros(num_samples, device=X.device)
+            loss[valid_positions] = nonzero_loss
         if self.reduction == "sum":
             loss = loss.sum()
         elif self.reduction == "elementwise_mean":
-            loss = loss.sum() / size
+            loss = loss.mean()
         return loss
 
 
