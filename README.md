@@ -81,6 +81,18 @@ pip install entmax
 }
 ```
 
+[IT-IST at the SIGMORPHON 2019 Shared Task: Sparse Two-headed Models for Inflection](https://www.aclweb.org/anthology/W19-4207)
+
+```
+@inproceedings{peters2019it,
+  author    = {Peters, Ben and Martins, Andr{\'e} FT},
+  title     = {IT-IST at the SIGMORPHON 2019 Shared Task: Sparse Two-headed Models for Inflection},
+  booktitle = {Proc. SIGMORPHON},
+  year      = {2019},
+  url       = {https://www.aclweb.org/anthology/W19-4207}
+}
+```
+
 [Adaptively Sparse Transformers](https://arxiv.org/pdf/1909.00015.pdf)
 
 ```
