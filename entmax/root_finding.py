@@ -199,8 +199,8 @@ def sparsemax_bisect(X, dim=-1, n_iter=50, ensure_sum_one=True):
         sum to close but not exactly 1, which might cause downstream problems.
 
     Note: This function does not yet support normalizing along anything except
-    the last dimension. Please use transposing and views to achieve more general
-    behavior.
+    the last dimension. Please use transposing and views to achieve more
+    general behavior.
 
     Returns
     -------
@@ -253,7 +253,7 @@ class EntmaxBisect(nn.Module):
             or python float, the same value is used for all rows, otherwise,
             it must have shape (or be expandable to)
             alpha.shape[j] == (X.shape[j] if j != dim else 1)
-            A value of alpha=2 corresponds to sparsemax, and alpha=1 corresponds
+            A value of alpha=2 corresponds to sparsemax; alpha=1 corresponds
             to softmax (but computing it this way is likely unstable).
 
         dim : int
@@ -269,7 +269,7 @@ class EntmaxBisect(nn.Module):
         self.alpha = alpha
         super().__init__()
 
-    def forward(self, X, alpha):
+    def forward(self, X):
         return entmax_bisect(
             X, alpha=self.alpha, dim=self.dim, n_iter=self.n_iter
         )
