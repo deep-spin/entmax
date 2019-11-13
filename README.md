@@ -81,18 +81,6 @@ pip install entmax
 }
 ```
 
-[IT-IST at the SIGMORPHON 2019 Shared Task: Sparse Two-headed Models for Inflection](https://www.aclweb.org/anthology/W19-4207)
-
-```
-@inproceedings{peters2019it,
-  author    = {Peters, Ben and Martins, Andr{\'e} FT},
-  title     = {IT-IST at the SIGMORPHON 2019 Shared Task: Sparse Two-headed Models for Inflection},
-  booktitle = {Proc. SIGMORPHON},
-  year      = {2019},
-  url       = {https://www.aclweb.org/anthology/W19-4207}
-}
-```
-
 [Adaptively Sparse Transformers](https://arxiv.org/pdf/1909.00015.pdf)
 
 ```
@@ -108,3 +96,4 @@ Further reading:
 
   - Blondel, Martins, and Niculae, 2019. [Learning with Fenchel-Young Losses](https://arxiv.org/abs/1901.02324).
   - Martins and Astudillo, 2016. [From Softmax to Sparsemax: A Sparse Model of Attention and Multi-Label Classification](https://arxiv.org/abs/1602.02068).
+  - Peters and Martins, 2019 [IT-IST at the SIGMORPHON 2019 Shared Task: Sparse Two-headed Models for Inflection](https://www.aclweb.org/anthology/W19-4207).
