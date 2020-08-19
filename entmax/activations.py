@@ -160,7 +160,7 @@ class SparsemaxFunction(Function):
         grad_input = grad_output.clone()
         grad_input[output == 0] = 0
 
-        v_hat = grad_input.sum(dim=dim) / supp_size.to(output.dtype).squeeze()
+        v_hat = grad_input.sum(dim=dim) / supp_size.to(output.dtype).squeeze(dim)
         v_hat = v_hat.unsqueeze(dim)
         grad_input = torch.where(output != 0, grad_input - v_hat, grad_input)
         return grad_input, None, None
