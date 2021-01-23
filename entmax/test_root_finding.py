@@ -35,7 +35,7 @@ def test_sparsemax_grad():
     gradcheck(sparsemax_bisect, (x,), eps=1e-5)
 
 
-@pytest.mark.parametrize("alpha", (1.2, 1.5, 1.75, 2.25))
+@pytest.mark.parametrize("alpha", (0.2, 0.5, 0.75, 1.2, 1.5, 1.75, 2.25))
 def test_entmax_grad(alpha):
     alpha = torch.tensor(alpha, dtype=torch.float64, requires_grad=True)
     x = torch.randn(4, 6, dtype=torch.float64, requires_grad=True)
@@ -45,7 +45,7 @@ def test_entmax_grad(alpha):
 def test_entmax_correct_multiple_alphas():
     n = 4
     x = torch.randn(n, 6, dtype=torch.float64, requires_grad=True)
-    alpha = 1.05 + torch.rand((n, 1), dtype=torch.float64, requires_grad=True)
+    alpha = 0.05 + 2.5*torch.rand((n, 1), dtype=torch.float64, requires_grad=True)
 
     p1 = entmax_bisect(x, alpha)
     p2_ = [
@@ -61,7 +61,7 @@ def test_entmax_grad_multiple_alphas():
 
     n = 4
     x = torch.randn(n, 6, dtype=torch.float64, requires_grad=True)
-    alpha = 1.05 + torch.rand((n, 1), dtype=torch.float64, requires_grad=True)
+    alpha = 0.05 + 2.5*torch.rand((n, 1), dtype=torch.float64, requires_grad=True)
     gradcheck(entmax_bisect, (x, alpha), eps=1e-5)
 
 
@@ -73,7 +73,7 @@ def test_arbitrary_dimension(dim):
     alpha_shape = shape
     alpha_shape[dim] = 1
 
-    alphas = 1.05 + torch.rand(alpha_shape, dtype=torch.float64)
+    alphas = 0.05 + 2.5*torch.rand(alpha_shape, dtype=torch.float64)
 
     P = entmax_bisect(X, alpha=alphas, dim=dim)
 
@@ -99,7 +99,7 @@ def test_arbitrary_dimension_grad(dim):
     f = partial(entmax_bisect, dim=dim)
 
     X = torch.randn(*shape, dtype=torch.float64, requires_grad=True)
-    alphas = 1.05 + torch.rand(
+    alphas = 0.05 + 2.5*torch.rand(
         alpha_shape, dtype=torch.float64, requires_grad=True
     )
     gradcheck(f, (X, alphas), eps=1e-5)
