@@ -39,10 +39,11 @@ class EntmaxBisectFunction(Function):
         ctx.dim = dim
         d = X.shape[dim]
 
-        X = X * (alpha - 1)
-
         max_val, _ = X.max(dim=dim, keepdim=True)
+        X = X * (alpha - 1)
+        max_val = max_val * (alpha - 1)
 
+        # Note: when alpha < 1, tau_lo > tau_hi. This still works since dm < 0.
         tau_lo = max_val - cls._gp(1, alpha)
         tau_hi = max_val - cls._gp(1 / d, alpha)
 
