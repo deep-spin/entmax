@@ -154,8 +154,9 @@ def entmax_bisect(X, alpha=1.5, dim=-1, n_iter=50, ensure_sum_one=True):
         or python float, the same value is used for all rows, otherwise,
         it must have shape (or be expandable to)
         alpha.shape[j] == (X.shape[j] if j != dim else 1)
-        A value of alpha=2 corresponds to sparsemax, and alpha=1 corresponds to
-        softmax (but computing it this way is likely unstable).
+        A value of alpha=2 corresponds to sparsemax, and alpha=1 would in theory recover
+        softmax. For numeric reasons, this algorithm does not work with `alpha=1`: if you
+        want softmax, we recommend `torch.nn.softmax`.
 
     dim : int
         The dimension along which to apply alpha-entmax.
@@ -254,8 +255,9 @@ class EntmaxBisect(nn.Module):
             or python float, the same value is used for all rows, otherwise,
             it must have shape (or be expandable to)
             alpha.shape[j] == (X.shape[j] if j != dim else 1)
-            A value of alpha=2 corresponds to sparsemax; alpha=1 corresponds
-            to softmax (but computing it this way is likely unstable).
+            A value of alpha=2 corresponds to sparsemax; and alpha=1 would in theory recover
+            softmax. For numeric reasons, this algorithm does not work with `alpha=1`; if you
+            want softmax, we recommend `torch.nn.softmax`.
 
         dim : int
             The dimension along which to apply alpha-entmax.
