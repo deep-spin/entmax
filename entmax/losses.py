@@ -225,8 +225,9 @@ def entmax_bisect_loss(X, target, alpha=1.5, n_iter=50):
     alpha : float or torch.Tensor
         Tensor of alpha parameters (> 1) to use for each row of X. If scalar
         or python float, the same value is used for all rows. A value of
-        alpha=2 corresponds to sparsemax, and alpha=1 corresponds to softmax
-        (but computing it this way is likely unstable).
+        alpha=2 corresponds to sparsemax, and alpha=1 would in theory recover
+        softmax. For numeric reasons, this algorithm does not work with `alpha=1`:
+        if you want softmax, we recommend `torch.nn.softmax`
 
     n_iter : int
         Number of bisection iterations. For float32, 24 iterations should
