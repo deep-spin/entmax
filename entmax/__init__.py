@@ -1,5 +1,3 @@
-__version__ = "1.1.dev0"
-
 from entmax.activations import sparsemax, entmax15, Sparsemax, Entmax15
 from entmax.root_finding import (
     sparsemax_bisect,
@@ -17,3 +15,4 @@ from entmax.losses import (
     Entmax15Loss,
     EntmaxBisectLoss,
 )
+from entmax.version import __version__
