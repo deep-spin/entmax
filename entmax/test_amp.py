@@ -26,6 +26,9 @@ if torch.cuda.is_available():
     @pytest.mark.parametrize("func", mappings)
     @pytest.mark.parametrize("dtype", (torch.bfloat16, torch.float16))
     def test_sum_one(func, dtype):
+        _Xs = [_X.to(dtype) for _X in Xs]
         with torch.autocast(device_type="cuda", dtype=dtype):
-            for X in Xs:
-                assert func(X).sum(-1).eq(1)
+            for _X in _Xs:
+                scores = func(_X)
+                prob_mass = scores.sum(-1)
+                assert torch.allclose(prob_mass, torch.tensor([1.0], device="cuda"))
