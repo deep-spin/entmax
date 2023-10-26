@@ -35,7 +35,7 @@ if torch.cuda.is_available():
     @pytest.mark.parametrize("func", mappings)
     @pytest.mark.parametrize("dtype", (torch.bfloat16, torch.float16))
     def test_probs_close(func, dtype):
-        full_precision_probs = [func(_X, dim=-1) for _X in Xs]
+        full_precision_probs = [func(_X.to(dtype).to(torch.float32), dim=-1) for _X in Xs]
         _Xs = [_X.to(dtype) for _X in Xs]
         with torch.autocast(device_type="cuda", dtype=dtype):
             for _X, fpp in zip(_Xs, full_precision_probs):
