@@ -10,6 +10,7 @@ https://arxiv.org/pdf/1905.05702 for detailed description.
 import torch
 import torch.nn as nn
 from torch.autograd import Function
+from torch.cuda.amp import custom_fwd, custom_bwd
 
 
 class EntmaxBisectFunction(Function):
@@ -26,6 +27,7 @@ class EntmaxBisectFunction(Function):
         return cls._gp_inv(torch.clamp(X, min=0), alpha)
 
     @classmethod
+    @custom_fwd(cast_inputs=torch.float32)
     def forward(cls, ctx, X, alpha=1.5, dim=-1, n_iter=50, ensure_sum_one=True):
 
         if not isinstance(alpha, torch.Tensor):
@@ -69,6 +71,7 @@ class EntmaxBisectFunction(Function):
         return p_m
 
     @classmethod
+    @custom_bwd
     def backward(cls, ctx, dY):
         Y, = ctx.saved_tensors
 
@@ -116,12 +119,14 @@ class SparsemaxBisectFunction(EntmaxBisectFunction):
         return torch.clamp(x, min=0)
 
     @classmethod
+    @custom_fwd(cast_inputs=torch.float32)
     def forward(cls, ctx, X, dim=-1, n_iter=50, ensure_sum_one=True):
         return super().forward(
             ctx, X, alpha=2, dim=dim, n_iter=50, ensure_sum_one=True
         )
 
     @classmethod
+    @custom_bwd
     def backward(cls, ctx, dY):
         Y, = ctx.saved_tensors
         gppr = (Y > 0).to(dtype=dY.dtype)
