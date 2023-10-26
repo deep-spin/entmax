@@ -22,13 +22,20 @@ if torch.cuda.is_available():
         for _ in range(5)
     ]
 
-
     @pytest.mark.parametrize("func", mappings)
     @pytest.mark.parametrize("dtype", (torch.bfloat16, torch.float16))
     def test_sum_one(func, dtype):
         _Xs = [_X.to(dtype) for _X in Xs]
         with torch.autocast(device_type="cuda", dtype=dtype):
             for _X in _Xs:
-                scores = func(_X)
+                scores = func(_X, dim=-1)
                 prob_mass = scores.sum(-1)
                 assert torch.allclose(prob_mass, torch.tensor([1.0], device="cuda"))
+
+    def test_probs_close(func, dtype):
+        full_precision_probs = [func(_X, dim=-1) for _X in Xs]
+        _Xs = [_X.to(dtype) for _X in Xs]
+        with torch.autocast(device_type="cuda", dtype=dtype):
+            for _X in _Xs:
+                probs = func(_X, dim=-1)
+                assert torch.allclose(probs, full_precision_probs)
