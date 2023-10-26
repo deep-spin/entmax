@@ -37,7 +37,7 @@ if torch.cuda.is_available():
             for _X in _Xs:
                 scores = func(_X, dim=-1)
                 prob_mass = scores.sum(-1)
-                assert torch.allclose(prob_mass, torch.tensor([1.0], device="cuda"))
+                assert torch.allclose(prob_mass, torch.tensor([1.0], dtype=dtype, device="cuda"))
 
     @pytest.mark.parametrize("Xs", (long_vecs, negatives))
     @pytest.mark.parametrize("func", mappings)
@@ -48,4 +48,4 @@ if torch.cuda.is_available():
         with torch.autocast(device_type="cuda", dtype=dtype):
             for _X, fpp in zip(_Xs, full_precision_probs):
                 probs = func(_X, dim=-1)
-                assert torch.allclose(probs, fpp)
+                assert torch.allclose(probs, fpp.to(dtype))
