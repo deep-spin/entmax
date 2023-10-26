@@ -32,6 +32,8 @@ if torch.cuda.is_available():
                 prob_mass = scores.sum(-1)
                 assert torch.allclose(prob_mass, torch.tensor([1.0], device="cuda"))
 
+    @pytest.mark.parametrize("func", mappings)
+    @pytest.mark.parametrize("dtype", (torch.bfloat16, torch.float16))
     def test_probs_close(func, dtype):
         full_precision_probs = [func(_X, dim=-1) for _X in Xs]
         _Xs = [_X.to(dtype) for _X in Xs]
