@@ -38,6 +38,6 @@ if torch.cuda.is_available():
         full_precision_probs = [func(_X, dim=-1) for _X in Xs]
         _Xs = [_X.to(dtype) for _X in Xs]
         with torch.autocast(device_type="cuda", dtype=dtype):
-            for _X in _Xs:
+            for _X, fpp in zip(_Xs, full_precision_probs):
                 probs = func(_X, dim=-1)
-                assert torch.allclose(probs, full_precision_probs)
+                assert torch.allclose(probs, fpp)
