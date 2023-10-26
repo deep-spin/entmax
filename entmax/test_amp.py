@@ -23,8 +23,8 @@ if torch.cuda.is_available():
     ]
 
 
-    @pytest.mark.parameterize("func", mappings)
-    @pytest.mark.parameterize("dtype", (torch.bfloat16, torch.float16))
+    @pytest.mark.parametrize("func", mappings)
+    @pytest.mark.parametrize("dtype", (torch.bfloat16, torch.float16))
     def test_sum_one(func, dtype):
         with torch.autocast(device_type="cuda", dtype=dtype):
             for X in Xs:
