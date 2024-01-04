@@ -47,6 +47,7 @@ class EntmaxBisectFunction(Function):
         tau_lo = max_val - cls._gp(1, alpha)
         tau_hi = max_val - cls._gp(1 / d, alpha)
 
+        # Note: f_lo should always be non-negative.
         f_lo = cls._p(X - tau_lo, alpha).sum(dim) - 1
 
         dm = tau_hi - tau_lo
@@ -58,7 +59,7 @@ class EntmaxBisectFunction(Function):
             p_m = cls._p(X - tau_m, alpha)
             f_m = p_m.sum(dim) - 1
 
-            mask = (f_m * f_lo >= 0).unsqueeze(dim)
+            mask = (f_m >= 0).unsqueeze(dim)
             tau_lo = torch.where(mask, tau_m, tau_lo)
 
         if ensure_sum_one:
