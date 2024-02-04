@@ -5,7 +5,8 @@ from functools import partial
 import torch
 from torch.autograd import gradcheck
 
-from entmax.root_finding import sparsemax_bisect, entmax_bisect, normmax_bisect
+from entmax.root_finding import (sparsemax_bisect, entmax_bisect,
+                                 normmax_bisect, budget_bisect)
 from entmax.activations import sparsemax, entmax15
 
 
@@ -49,6 +50,13 @@ def test_normmax_grad(alpha):
     gradcheck(normmax_bisect, (x, alpha), eps=1e-5)
 
 
+@pytest.mark.parametrize("k", (0, 1, 2, 3, 4, 5, 6))
+def test_budget_grad(k):
+    k = torch.tensor(k, dtype=torch.float64)
+    x = torch.randn(4, 6, dtype=torch.float64, requires_grad=True)
+    gradcheck(budget_bisect, (x, k), eps=1e-5)
+
+
 def test_entmax_correct_multiple_alphas():
     n = 4
     x = torch.randn(n, 6, dtype=torch.float64, requires_grad=True)
@@ -77,6 +85,13 @@ def test_normmax_grad_multiple_alphas():
     x = torch.randn(n, 6, dtype=torch.float64, requires_grad=True)
     alpha = 1 + 2.5*torch.rand((n, 1), dtype=torch.float64)
     gradcheck(normmax_bisect, (x, alpha), eps=1e-5)
+
+
+def test_budget_grad_multiple_k():
+    n = 4
+    x = torch.randn(n, 6, dtype=torch.float64, requires_grad=True)
+    k = 6*torch.rand((n, 1), dtype=torch.float64)
+    gradcheck(normmax_bisect, (x, k), eps=1e-5)
 
 
 @pytest.mark.parametrize("dim", (0, 1, 2, 3))

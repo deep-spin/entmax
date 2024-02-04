@@ -6,6 +6,7 @@ https://arxiv.org/pdf/1905.05702 for detailed description.
 # Author: Goncalo M Correia
 # Author: Ben Peters
 # Author: Vlad Niculae <vlad@vene.ro>
+# Author: Andre Martins <andre.t.martins@gmail.com>
 
 import torch
 import torch.nn as nn
@@ -200,6 +201,62 @@ class NormmaxBisectFunction(Function):
         return dX, None, None, None, None
 
 
+class BudgetBisectFunction(Function):
+    @classmethod
+    def forward(cls, ctx, X, budget=2, dim=-1, n_iter=50):
+
+        if not isinstance(budget, torch.Tensor):
+            budget = torch.tensor(budget, dtype=X.dtype, device=X.device)
+
+        budget_shape = list(X.shape)
+        budget_shape[dim] = 1
+        budget = budget.expand(*budget_shape)
+
+        ctx.budget = budget
+        ctx.dim = dim
+        d = X.shape[dim]
+
+        max_val, _ = X.max(dim=dim, keepdim=True)
+        min_val, _ = X.min(dim=dim, keepdim=True)
+
+        # If tau = max_val - B/N, X-tau <= B/N, hence sum(max(0, X-tau)) <= B.
+        # If tau = min_val - B/N, X-tau >= B/N, hence sum(min(1, X-tau)) >= B.
+        tau_lo = min_val - budget / X.shape[dim]
+        tau_hi = max_val - budget / X.shape[dim]
+
+        f_lo = (torch.clamp(X - tau_lo, min=0, max=1).sum(dim).unsqueeze(dim)
+                - budget)
+        dm = tau_hi - tau_lo
+
+        for it in range(n_iter):
+            dm /= 2
+            tau_m = tau_lo + dm
+            p_m = torch.clamp(X - tau_m, min=0, max=1)
+            f_m = p_m.sum(dim).unsqueeze(dim) - budget
+            mask = (f_m >= 0)
+            tau_lo = torch.where(mask, tau_m, tau_lo)
+
+        ctx.save_for_backward(p_m)
+
+        return p_m
+
+    @classmethod
+    def backward(cls, ctx, dY):
+        Y, = ctx.saved_tensors
+
+        # tau = (size_one  + sum(score[active]) - budget) / size_active
+        # dtau / dscore = 1 / size_active
+        # J = Diag(s) - ss' / size_active, s indicator vector of active indices.
+
+        active = (Y > 0) & (Y < 1)
+        active_size = active.sum(ctx.dim)
+        v_hat = ((dY * active).sum(ctx.dim) /
+                 active_size.to(Y.dtype).squeeze(ctx.dim)).unsqueeze(ctx.dim)
+        dX = torch.where((Y > 0) & (Y < 1), dY - v_hat, Y.new_zeros(1))
+
+        return dX, None, None, None, None
+
+
 def entmax_bisect(X, alpha=1.5, dim=-1, n_iter=50, ensure_sum_one=True):
     """alpha-entmax: normalizing sparse transform (a la softmax).
 
@@ -318,6 +375,44 @@ def normmax_bisect(X, alpha=2, dim=-1, n_iter=50):
     return NormmaxBisectFunction.apply(X, alpha, dim, n_iter)
 
 
+def budget_bisect(X, budget=2, dim=-1, n_iter=50):
+    """budget-sparsemax: normalizing sparse transform with budget (k-subsets)
+    constraint.
+
+    Solves the optimization problem:
+
+        max_p <x, p> - 1/2 ||p||**2    s.t.    0 <= p <= 1, sum(p) == budget
+
+    using a bisection (root finding, binary search) algorithm.
+
+    This function is differentiable with respect to X.
+
+    Parameters
+    ----------
+    X : torch.Tensor
+        The input tensor.
+
+    budget : float or torch.Tensor
+        Tensor of budget parameters (> 1) to use. If scalar
+        or python float, the same value is used for all rows, otherwise,
+        it must have shape (or be expandable to)
+        budget.shape[j] == (X.shape[j] if j != dim else 1).
+
+    dim : int
+        The dimension along which to apply budget-sparsemax.
+
+    n_iter : int
+        Number of bisection iterations. For float32, 24 iterations should
+        suffice for machine precision.
+
+    Returns
+    -------
+    P : torch tensor, same shape as X
+        The projection result, such that P.sum(dim=dim) == budget elementwise.
+    """
+    return BudgetBisectFunction.apply(X, budget, dim, n_iter)
+
+
 class SparsemaxBisect(nn.Module):
     def __init__(self, dim=-1, n_iter=None):
         """sparsemax: normalizing sparse transform (a la softmax) via bisection
@@ -419,4 +514,46 @@ class NormmaxBisect(nn.Module):
     def forward(self, X):
         return normmax_bisect(
             X, alpha=self.alpha, dim=self.dim, n_iter=self.n_iter
+        )
+
+
+class BudgetBisect(nn.Module):
+    def __init__(self, budget=2, dim=-1, n_iter=50):
+        """budget-sparsemax: normalizing sparse transform with budget
+        (k-subsets) constraint.
+
+        Solves the optimization problem:
+
+            max_p <x, p> - 1/2 ||p||**2    s.t.    0 <= p <= 1, sum(p) == budget
+
+        using a bisection (root finding, binary search) algorithm.
+
+        This function is differentiable with respect to X.
+
+        Parameters
+        ----------
+        X : torch.Tensor
+            The input tensor.
+
+        budget : float or torch.Tensor
+            Tensor of budget parameters (> 1) to use. If scalar
+            or python float, the same value is used for all rows, otherwise,
+            it must have shape (or be expandable to)
+            budget.shape[j] == (X.shape[j] if j != dim else 1).
+
+        dim : int
+            The dimension along which to apply budget-sparsemax.
+
+        n_iter : int
+            Number of bisection iterations. For float32, 24 iterations should
+            suffice for machine precision.
+        """
+        self.dim = dim
+        self.n_iter = n_iter
+        self.budget = budget
+        super().__init__()
+
+    def forward(self, X):
+        return budget_bisect(
+            X, budget=self.budget, dim=self.dim, n_iter=self.n_iter
         )

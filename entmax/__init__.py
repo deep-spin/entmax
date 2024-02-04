@@ -5,9 +5,11 @@ from entmax.root_finding import (
     sparsemax_bisect,
     entmax_bisect,
     normmax_bisect,
+    budget_bisect,
     SparsemaxBisect,
     EntmaxBisect,
-    NormmaxBisect
+    NormmaxBisect,
+    BudgetBisect
 )
 from entmax.losses import (
     sparsemax_loss,
