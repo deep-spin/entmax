@@ -133,6 +133,73 @@ class SparsemaxBisectFunction(EntmaxBisectFunction):
         return dX, None, None, None
 
 
+class NormmaxBisectFunction(Function):
+    @classmethod
+    def _gp(cls, x, alpha):
+        return x ** (alpha - 1)
+
+    @classmethod
+    def _gp_inv(cls, y, alpha):
+        return y ** (1 / (alpha - 1))
+
+    @classmethod
+    def _p(cls, X, alpha):
+        return cls._gp_inv(torch.clamp(X, min=0), alpha)
+
+    @classmethod
+    def forward(cls, ctx, X, alpha=2, dim=-1, n_iter=50):
+
+        if not isinstance(alpha, torch.Tensor):
+            alpha = torch.tensor(alpha, dtype=X.dtype, device=X.device)
+
+        alpha_shape = list(X.shape)
+        alpha_shape[dim] = 1
+        alpha = alpha.expand(*alpha_shape)
+
+        ctx.alpha = alpha
+        ctx.dim = dim
+        d = X.shape[dim]
+
+        max_val, _ = X.max(dim=dim, keepdim=True)
+        tau_lo = max_val - cls._gp(1, alpha)  # 1
+        tau_hi = max_val - cls._gp(1 / d, alpha)  # (1/d)**(alpha-1)
+
+        f_lo = (cls._p(X - tau_lo, alpha) ** alpha).sum(dim) - 1
+        dm = tau_hi - tau_lo
+
+        for it in range(n_iter):
+            dm /= 2
+            tau_m = tau_lo + dm
+            p_m = cls._p(X - tau_m, alpha)  # [X - tau]_+ ** (1/(alpha-1))
+            f_m = (p_m ** alpha).sum(dim) - 1
+            mask = (f_m >= 0).unsqueeze(dim)
+            tau_lo = torch.where(mask, tau_m, tau_lo)
+
+        p_m /= p_m.sum(dim=dim).unsqueeze(dim=dim)
+
+        ctx.save_for_backward(p_m)
+
+        return p_m
+
+    @classmethod
+    def backward(cls, ctx, dY):
+        Y, = ctx.saved_tensors
+
+        a = torch.where(Y > 0, Y, Y.new_zeros(1))
+        b = torch.where(Y > 0, Y ** (2 - ctx.alpha), Y.new_zeros(1))
+        
+        dX = dY * b
+        q = dX.sum(ctx.dim).unsqueeze(ctx.dim)
+        dX -= q * a
+        q = (dY * a).sum(ctx.dim).unsqueeze(ctx.dim)
+        dX -= q * (b - b.sum(ctx.dim).unsqueeze(ctx.dim) * a)
+        dX *= ((a ** ctx.alpha).sum(ctx.dim).unsqueeze(ctx.dim) **
+               ((ctx.alpha - 1) / ctx.alpha))
+        dX /= (ctx.alpha - 1)
+
+        return dX, None, None, None, None
+
+
 def entmax_bisect(X, alpha=1.5, dim=-1, n_iter=50, ensure_sum_one=True):
     """alpha-entmax: normalizing sparse transform (a la softmax).
 
@@ -213,6 +280,44 @@ def sparsemax_bisect(X, dim=-1, n_iter=50, ensure_sum_one=True):
     return SparsemaxBisectFunction.apply(X, dim, n_iter, ensure_sum_one)
 
 
+def normmax_bisect(X, alpha=2, dim=-1, n_iter=50):
+    """alpha-normmax: normalizing sparse transform (a la softmax and entmax).
+
+    Solves the optimization problem:
+
+        max_p <x, p> - ||p||_alpha    s.t.    p >= 0, sum(p) == 1.
+
+    where ||.||_alpha is the alpha-norm, with custom alpha >= 1,
+    using a bisection (root finding, binary search) algorithm.
+
+    This function is differentiable with respect to X.
+
+    Parameters
+    ----------
+    X : torch.Tensor
+        The input tensor.
+
+    alpha : float or torch.Tensor
+        Tensor of alpha parameters (> 1) to use. If scalar
+        or python float, the same value is used for all rows, otherwise,
+        it must have shape (or be expandable to)
+        alpha.shape[j] == (X.shape[j] if j != dim else 1).
+
+    dim : int
+        The dimension along which to apply alpha-normmax.
+
+    n_iter : int
+        Number of bisection iterations. For float32, 24 iterations should
+        suffice for machine precision.
+
+    Returns
+    -------
+    P : torch tensor, same shape as X
+        The projection result, such that P.sum(dim=dim) == 1 elementwise.
+    """
+    return NormmaxBisectFunction.apply(X, alpha, dim, n_iter)
+
+
 class SparsemaxBisect(nn.Module):
     def __init__(self, dim=-1, n_iter=None):
         """sparsemax: normalizing sparse transform (a la softmax) via bisection
@@ -275,5 +380,43 @@ class EntmaxBisect(nn.Module):
 
     def forward(self, X):
         return entmax_bisect(
+            X, alpha=self.alpha, dim=self.dim, n_iter=self.n_iter
+        )
+
+
+class NormmaxBisect(nn.Module):
+    def __init__(self, alpha=2, dim=-1, n_iter=50):
+        """alpha-normmax: normalizing sparse map (a la softmax and entmax)
+        via bisection.
+
+        Solves the optimization problem:
+
+            max_p <x, p> - ||p||_alpha    s.t.    p >= 0, sum(p) == 1.
+
+        where ||.||_alpha is the alpha-norm, with custom alpha >= 1,
+        using a bisection (root finding, binary search) algorithm.
+
+        Parameters
+        ----------
+        alpha : float or torch.Tensor
+            Tensor of alpha parameters (> 1) to use. If scalar
+            or python float, the same value is used for all rows, otherwise,
+            it must have shape (or be expandable to)
+            alpha.shape[j] == (X.shape[j] if j != dim else 1).
+
+        dim : int
+            The dimension along which to apply alpha-normmax.
+
+        n_iter : int
+            Number of bisection iterations. For float32, 24 iterations should
+            suffice for machine precision.
+        """
+        self.dim = dim
+        self.n_iter = n_iter
+        self.alpha = alpha
+        super().__init__()
+
+    def forward(self, X):
+        return normmax_bisect(
             X, alpha=self.alpha, dim=self.dim, n_iter=self.n_iter
         )
