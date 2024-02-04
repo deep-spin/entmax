@@ -45,7 +45,7 @@ def test_entmax_grad(alpha):
 @pytest.mark.parametrize("alpha", (1.2, 1.5, 2, 5, 10))
 def test_normmax_grad(alpha):
     alpha = torch.tensor(alpha, dtype=torch.float64)
-    x = .1 * torch.randn(1, 6, dtype=torch.float64, requires_grad=True)
+    x = torch.randn(4, 6, dtype=torch.float64, requires_grad=True)
     gradcheck(normmax_bisect, (x, alpha), eps=1e-5)
 
 
