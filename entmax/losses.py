@@ -275,7 +275,7 @@ def normmax_bisect_loss(X, target, alpha=2, n_iter=50):
 
     alpha : float or torch.Tensor
         Tensor of alpha parameters (> 1) to use for each row of X. If scalar
-        or python float, the same value is used for all rows. 
+        or python float, the same value is used for all rows.
 
     n_iter : int
         Number of bisection iterations. For float32, 24 iterations should
