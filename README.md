@@ -17,7 +17,7 @@ generalizing softmax / cross-entropy.
   - A bisection-based algorithm for generic alpha-entmax.
   - Gradients w.r.t. alpha for adaptive, learned sparsity!
 
-*Requirements:* python 3, pytorch >= 1.0 (and pytest for unit tests)
+*Requirements:* python 3, pytorch >= 1.3 (and pytest for unit tests)
 
 ## Example
 
