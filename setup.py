@@ -9,5 +9,5 @@ setup(name='entmax',
                    "alternatives to softmax."),
       license="MIT",
       packages=['entmax'],
-      install_requires=['torch>=1.0'],
+      install_requires=['torch>=1.2'],
       python_requires=">=3.5")
