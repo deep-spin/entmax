@@ -48,7 +48,6 @@ Out[9]: tensor([0.0000, 0.4997, 0.5003])
 
 In [10]: budget_bisect(x, budget=2, dim=0)
 Out[10]: tensor([0.0000, 1.0000, 1.0000])
-
 ```
 
 Gradients w.r.t. alpha (continued):
