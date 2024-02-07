@@ -8,6 +8,7 @@ from entmax.losses import (
     Entmax15Loss,
     SparsemaxBisectLoss,
     EntmaxBisectLoss,
+    NormmaxBisectLoss
 )
 
 
@@ -27,6 +28,7 @@ losses = [
     partial(Entmax15Loss, k=5),
     SparsemaxBisectLoss,
     EntmaxBisectLoss,
+    NormmaxBisectLoss
 ]
 
 
@@ -67,3 +69,4 @@ if __name__ == "__main__":
     test_entmax_loss()
     test_sparsemax_bisect_loss()
     test_entmax_bisect_loss()
+    test_normmax_bisect_loss()

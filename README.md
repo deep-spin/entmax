@@ -16,8 +16,9 @@ generalizing softmax / cross-entropy.
   - Exact partial-sort algorithms for 1.5-entmax and 2-entmax (sparsemax).
   - A bisection-based algorithm for generic alpha-entmax.
   - Gradients w.r.t. alpha for adaptive, learned sparsity!
+  - Other sparse transformations: alpha-normmax and k-subsets budget (handled through bisection-based algorithms).
 
-*Requirements:* python 3, pytorch >= 1.0 (and pytest for unit tests)
+*Requirements:* python 3, pytorch >= 1.3 (and pytest for unit tests)
 
 ## Example
 
@@ -26,7 +27,7 @@ In [1]: import torch
 
 In [2]: from torch.nn.functional import softmax
 
-In [2]: from entmax import sparsemax, entmax15, entmax_bisect
+In [2]: from entmax import sparsemax, entmax15, entmax_bisect, normmax_bisect, budget_bisect
 
 In [4]: x = torch.tensor([-2, 0, 0.5])
 
@@ -39,6 +40,14 @@ Out[6]: tensor([0.0000, 0.2500, 0.7500])
 In [7]: entmax15(x, dim=0)
 Out[7]: tensor([0.0000, 0.3260, 0.6740])
 
+In [8]: normmax_bisect(x, alpha=2, dim=0)
+Out[8]: tensor([0.0000, 0.3110, 0.6890])
+
+In [9]: normmax_bisect(x, alpha=1000, dim=0)
+Out[9]: tensor([0.0000, 0.4997, 0.5003])
+
+In [10]: budget_bisect(x, budget=2, dim=0)
+Out[10]: tensor([0.0000, 1.0000, 1.0000])
 ```
 
 Gradients w.r.t. alpha (continued):

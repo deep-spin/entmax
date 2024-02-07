@@ -3,7 +3,7 @@ import torch.nn as nn
 from torch.autograd import Function
 
 from entmax.activations import sparsemax, entmax15
-from entmax.root_finding import entmax_bisect, sparsemax_bisect
+from entmax.root_finding import entmax_bisect, sparsemax_bisect, normmax_bisect
 
 
 class _GenericLoss(nn.Module):
@@ -128,6 +128,25 @@ class EntmaxBisectLossFunction(_GenericLossFunction):
         )
 
 
+class NormmaxBisectLossFunction(_GenericLossFunction):
+
+    n_fwd_args = 2
+
+    @classmethod
+    def project(cls, X, alpha, n_iter):
+        return normmax_bisect(X, alpha=alpha, n_iter=n_iter)
+
+    @classmethod
+    def omega(cls, p_star, alpha):
+        return 1 - (p_star ** alpha).sum(dim=1) ** (1 / alpha)
+
+    @classmethod
+    def forward(cls, ctx, X, target, alpha=2, n_iter=50):
+        return super().forward(
+            ctx, X, target, alpha, proj_args=dict(n_iter=n_iter)
+        )
+
+
 def sparsemax_loss(X, target, k=None):
     """sparsemax loss: sparse alternative to cross-entropy
 
@@ -241,6 +260,35 @@ def entmax_bisect_loss(X, target, alpha=1.5, n_iter=50):
     return EntmaxBisectLossFunction.apply(X, target, alpha, n_iter)
 
 
+def normmax_bisect_loss(X, target, alpha=2, n_iter=50):
+    """alpha-normmax loss: another sparse alternative to cross-entropy
+
+    Computed using bisection, supporting arbitrary alpha > 1.
+
+    Parameters
+    ----------
+    X : torch.Tensor, shape=(n_samples, n_classes)
+        The input 2D tensor of predicted scores
+
+    target : torch.LongTensor, shape=(n_samples,)
+        The ground truth labels, 0 <= target < n_classes.
+
+    alpha : float or torch.Tensor
+        Tensor of alpha parameters (> 1) to use for each row of X. If scalar
+        or python float, the same value is used for all rows.
+
+    n_iter : int
+        Number of bisection iterations. For float32, 24 iterations should
+        suffice for machine precision.
+
+    Returns
+    -------
+    losses, torch.Tensor, shape=(n_samples,)
+        The loss incurred at each sample.
+    """
+    return NormmaxBisectLossFunction.apply(X, target, alpha, n_iter)
+
+
 class SparsemaxBisectLoss(_GenericLoss):
     def __init__(
         self, n_iter=50, ignore_index=-100, reduction="elementwise_mean"
@@ -275,6 +323,22 @@ class EntmaxBisectLoss(_GenericLoss):
 
     def loss(self, X, target):
         return entmax_bisect_loss(X, target, self.alpha, self.n_iter)
+
+
+class NormmaxBisectLoss(_GenericLoss):
+    def __init__(
+        self,
+        alpha=2,
+        n_iter=50,
+        ignore_index=-100,
+        reduction="elementwise_mean",
+    ):
+        self.alpha = alpha
+        self.n_iter = n_iter
+        super(NormmaxBisectLoss, self).__init__(ignore_index, reduction)
+
+    def loss(self, X, target):
+        return normmax_bisect_loss(X, target, self.alpha, self.n_iter)
 
 
 class Entmax15Loss(_GenericLoss):
