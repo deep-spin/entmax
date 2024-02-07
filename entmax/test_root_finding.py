@@ -31,6 +31,34 @@ def test_entmax15():
     assert torch.sum((p1 - p2) ** 2) < 1e-7
 
 
+def test_normmax():
+    x = torch.tensor([0, .25, .5, .75, 1], dtype=torch.float32)
+    p1 = normmax_bisect(x, alpha=2, dim=0)
+    p2 = torch.tensor([0.0000, 0.0239, 0.1746, 0.3254, 0.4761],
+                      dtype=torch.float32)
+    assert torch.sum((p1 - p2) ** 2) < 1e-7
+    p1 = normmax_bisect(x, alpha=1000, dim=0)
+    p2 = torch.tensor([0.0000, 0.0000, 0.3330, 0.3334, 0.3336],
+                      dtype=torch.float32)
+    assert torch.sum((p1 - p2) ** 2) < 1e-7
+
+
+def test_budget():
+    x = torch.tensor([0, .25, .5, .75, 1], dtype=torch.float32)
+    p1 = budget_bisect(x, budget=2, dim=0)
+    p2 = torch.tensor([0.0000, 0.1250, 0.3750, 0.6250, 0.8750],
+                      dtype=torch.float32)
+    assert torch.sum((p1 - p2) ** 2) < 1e-7
+    p1 = budget_bisect(2*x, budget=3, dim=0)
+    p2 = torch.tensor([0.0000, 0.2500, 0.7500, 1.0000, 1.0000],
+                      dtype=torch.float32)
+    assert torch.sum((p1 - p2) ** 2) < 1e-7
+    for c in (1, 2, 3, 4, 5):
+        p1 = budget_bisect(c*x, budget=1, dim=0)
+        p2 = sparsemax(c*x, dim=0)
+        assert torch.sum((p1 - p2) ** 2) < 1e-7
+
+
 def test_sparsemax_grad():
     x = torch.randn(4, 6, dtype=torch.float64, requires_grad=True)
     gradcheck(sparsemax_bisect, (x,), eps=1e-5)
