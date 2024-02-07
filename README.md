@@ -18,7 +18,7 @@ generalizing softmax / cross-entropy.
   - Gradients w.r.t. alpha for adaptive, learned sparsity!
   - Other sparse transformations: alpha-normmax and k-subsets budget (handled through bisection-based algorithms).
 
-*Requirements:* python 3, pytorch >= 1.0 (and pytest for unit tests)
+*Requirements:* python 3, pytorch >= 1.3 (and pytest for unit tests)
 
 ## Example
 

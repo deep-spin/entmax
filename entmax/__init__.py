@@ -1,4 +1,4 @@
-__version__ = "1.4.dev0"
+__version__ = "1.3.dev0"
 
 from entmax.activations import sparsemax, entmax15, Sparsemax, Entmax15
 from entmax.root_finding import (

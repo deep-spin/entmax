@@ -3,8 +3,8 @@ Bisection implementation of alpha-entmax (Peters et al., 2019).
 Backward pass wrt alpha per (Correia et al., 2019). See
 https://arxiv.org/pdf/1905.05702 for detailed description.
 """
-# Author: Goncalo M Correia
-# Author: Ben Peters
+# Author: Goncalo M Correia <goncalommac@gmail.com>
+# Author: Ben Peters <benzurdopeters@gmail.com>
 # Author: Vlad Niculae <vlad@vene.ro>
 # Author: Andre Martins <andre.t.martins@gmail.com>
 
@@ -49,7 +49,7 @@ class EntmaxBisectFunction(Function):
         tau_hi = max_val - cls._gp(1 / d, alpha)
 
         # Note: f_lo should always be non-negative.
-        f_lo = cls._p(X - tau_lo, alpha).sum(dim) - 1
+        # f_lo = cls._p(X - tau_lo, alpha).sum(dim) - 1
 
         dm = tau_hi - tau_lo
 
@@ -165,7 +165,7 @@ class NormmaxBisectFunction(Function):
         tau_lo = max_val - cls._gp(1, alpha)  # 1
         tau_hi = max_val - cls._gp(1 / d, alpha)  # (1/d)**(alpha-1)
 
-        f_lo = (cls._p(X - tau_lo, alpha) ** alpha).sum(dim) - 1
+        # f_lo = (cls._p(X - tau_lo, alpha) ** alpha).sum(dim) - 1
         dm = tau_hi - tau_lo
 
         for it in range(n_iter):
@@ -188,7 +188,7 @@ class NormmaxBisectFunction(Function):
 
         a = torch.where(Y > 0, Y, Y.new_zeros(1))
         b = torch.where(Y > 0, Y ** (2 - ctx.alpha), Y.new_zeros(1))
-        
+
         dX = dY * b
         q = dX.sum(ctx.dim).unsqueeze(ctx.dim)
         dX -= q * a
@@ -214,7 +214,6 @@ class BudgetBisectFunction(Function):
 
         ctx.budget = budget
         ctx.dim = dim
-        d = X.shape[dim]
 
         max_val, _ = X.max(dim=dim, keepdim=True)
         min_val, _ = X.min(dim=dim, keepdim=True)
@@ -224,8 +223,8 @@ class BudgetBisectFunction(Function):
         tau_lo = min_val - budget / X.shape[dim]
         tau_hi = max_val - budget / X.shape[dim]
 
-        f_lo = (torch.clamp(X - tau_lo, min=0, max=1).sum(dim).unsqueeze(dim)
-                - budget)
+        # f_lo = (torch.clamp(X - tau_lo, min=0, max=1).sum(dim).unsqueeze(dim)
+        #         - budget)
         dm = tau_hi - tau_lo
 
         for it in range(n_iter):
