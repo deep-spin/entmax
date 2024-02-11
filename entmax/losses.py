@@ -7,24 +7,31 @@ from entmax.root_finding import entmax_bisect, sparsemax_bisect, normmax_bisect
 
 
 class _GenericLoss(nn.Module):
-    def __init__(self, ignore_index=-100, reduction="elementwise_mean"):
-        assert reduction in ["elementwise_mean", "sum", "none"]
+    def __init__(self, ignore_index=-100, reduction="mean"):
+        assert reduction in ["elementwise_mean", "sum", "none", "mean"]
+        if reduction == "elementwise_mean":
+            reduction = "mean"
         self.reduction = reduction
         self.ignore_index = ignore_index
         super(_GenericLoss, self).__init__()
 
     def forward(self, X, target):
+        if self.ignore_index is not None:
+            num_samples = target.size(0)
+            valid_positions = target != self.ignore_index
+            target = target[valid_positions]
+            X = X[valid_positions]
+
         loss = self.loss(X, target)
-        if self.ignore_index >= 0:
-            ignored_positions = target == self.ignore_index
-            size = float((target.size(0) - ignored_positions.sum()).item())
-            loss.masked_fill_(ignored_positions, 0.0)
-        else:
-            size = float(target.size(0))
+
+        if self.reduction == "none" and self.ignore_index is not None:
+            nonzero_loss = loss
+            loss = torch.zeros(num_samples, device=X.device)
+            loss[valid_positions] = nonzero_loss
         if self.reduction == "sum":
             loss = loss.sum()
-        elif self.reduction == "elementwise_mean":
-            loss = loss.sum() / size
+        elif self.reduction == "mean":
+            loss = loss.mean()
         return loss
 
 
@@ -301,7 +308,7 @@ class SparsemaxBisectLoss(_GenericLoss):
 
 
 class SparsemaxLoss(_GenericLoss):
-    def __init__(self, k=None, ignore_index=-100, reduction="elementwise_mean"):
+    def __init__(self, k=None, ignore_index=-100, reduction="mean"):
         self.k = k
         super(SparsemaxLoss, self).__init__(ignore_index, reduction)
 
@@ -315,7 +322,7 @@ class EntmaxBisectLoss(_GenericLoss):
         alpha=1.5,
         n_iter=50,
         ignore_index=-100,
-        reduction="elementwise_mean",
+        reduction="mean",
     ):
         self.alpha = alpha
         self.n_iter = n_iter
@@ -342,7 +349,7 @@ class NormmaxBisectLoss(_GenericLoss):
 
 
 class Entmax15Loss(_GenericLoss):
-    def __init__(self, k=100, ignore_index=-100, reduction="elementwise_mean"):
+    def __init__(self, k=100, ignore_index=-100, reduction="mean"):
         self.k = k
         super(Entmax15Loss, self).__init__(ignore_index, reduction)
 
