@@ -118,8 +118,64 @@ def test_normmax_grad_multiple_alphas():
 def test_budget_grad_multiple_k():
     n = 4
     x = torch.randn(n, 6, dtype=torch.float64, requires_grad=True)
-    k = 6*torch.rand((n, 1), dtype=torch.float64)
-    gradcheck(normmax_bisect, (x, k), eps=1e-5)
+    k = 6 * torch.rand((n, 1), dtype=torch.float64)
+    gradcheck(budget_bisect, (x, k), eps=1e-5)
+
+
+@pytest.mark.parametrize("dim", (0, 1, 2, 3))
+def test_normmax_arbitrary_dimension(dim):
+    shape = [3, 4, 2, 5]
+    X = torch.randn(*shape, dtype=torch.float64)
+
+    P = normmax_bisect(X, alpha=2, dim=dim)
+
+    ranges = [
+        list(range(k)) if i != dim else [slice(None)]
+        for i, k in enumerate(shape)
+    ]
+
+    for ix in product(*ranges):
+        x = X[ix].unsqueeze(0)
+        p_true = normmax_bisect(x, alpha=2, dim=-1)
+        assert torch.allclose(P[ix], p_true)
+
+
+@pytest.mark.parametrize("dim", (0, 1, 2, 3))
+def test_normmax_grad_arbitrary_dimension(dim):
+    shape = [3, 4, 2, 5]
+
+    f = partial(normmax_bisect, alpha=2, dim=dim)
+    X = torch.randn(*shape, dtype=torch.float64, requires_grad=True)
+
+    gradcheck(f, (X,), eps=1e-5)
+
+
+@pytest.mark.parametrize("dim", (0, 1, 2, 3))
+def test_budget_arbitrary_dimension(dim):
+    shape = [3, 4, 2, 5]
+    X = torch.randn(*shape, dtype=torch.float64)
+
+    P = budget_bisect(X, budget=2, dim=dim)
+
+    ranges = [
+        list(range(k)) if i != dim else [slice(None)]
+        for i, k in enumerate(shape)
+    ]
+
+    for ix in product(*ranges):
+        x = X[ix].unsqueeze(0)
+        p_true = budget_bisect(x, budget=2, dim=-1)
+        assert torch.allclose(P[ix], p_true)
+
+
+@pytest.mark.parametrize("dim", (0, 1, 2, 3))
+def test_budget_grad_arbitrary_dimension(dim):
+    shape = [3, 4, 2, 5]
+
+    f = partial(budget_bisect, budget=2, dim=dim)
+    X = torch.randn(*shape, dtype=torch.float64, requires_grad=True)
+
+    gradcheck(f, (X,), eps=1e-5)
 
 
 @pytest.mark.parametrize("dim", (0, 1, 2, 3))
