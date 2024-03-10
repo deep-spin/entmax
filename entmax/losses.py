@@ -7,14 +7,19 @@ from entmax.root_finding import entmax_bisect, sparsemax_bisect, normmax_bisect
 
 
 class _GenericLoss(nn.Module):
-    def __init__(self, ignore_index=-100, reduction="elementwise_mean"):
+    def __init__(self, ignore_index=-100, reduction="elementwise_mean", return_support=False):
         assert reduction in ["elementwise_mean", "sum", "none"]
         self.reduction = reduction
         self.ignore_index = ignore_index
+        self.return_support = return_support
         super(_GenericLoss, self).__init__()
 
     def forward(self, X, target):
-        loss = self.loss(X, target)
+        if self.return_support:
+            loss, support = self.loss(X, target)
+        else:
+            loss = self.loss(X, target)
+            support = None
         if self.ignore_index >= 0:
             ignored_positions = target == self.ignore_index
             size = float((target.size(0) - ignored_positions.sum()).item())
@@ -25,10 +30,16 @@ class _GenericLoss(nn.Module):
             loss = loss.sum()
         elif self.reduction == "elementwise_mean":
             loss = loss.sum() / size
+
+        if self.return_support:
+            return loss, support
         return loss
 
 
 class _GenericLossFunction(Function):
+
+    return_support = False
+
     @classmethod
     def forward(cls, ctx, X, target, alpha, proj_args):
         """
@@ -37,17 +48,21 @@ class _GenericLossFunction(Function):
         """
         assert X.shape[0] == target.shape[0]
 
-        p_star = cls.project(X, alpha, **proj_args)
+        if cls.return_support:
+            p_star, support_size = cls.project(X, alpha, **proj_args)
+        else:
+            p_star = cls.project(X, alpha, **proj_args)
+            support_size = None
         loss = cls.omega(p_star, alpha)
 
         p_star.scatter_add_(1, target.unsqueeze(1), torch.full_like(p_star, -1))
         loss += torch.einsum("ij,ij->i", p_star, X)
         ctx.save_for_backward(p_star)
 
-        return loss
+        return loss, support_size
 
     @classmethod
-    def backward(cls, ctx, grad_output):
+    def backward(cls, ctx, grad_output, supp):
         p_star, = ctx.saved_tensors
         grad = grad_output.unsqueeze(1) * p_star
         ret = (grad,)
@@ -59,10 +74,11 @@ class _GenericLossFunction(Function):
 class SparsemaxLossFunction(_GenericLossFunction):
 
     n_fwd_args = 1
+    return_support = True
 
     @classmethod
     def project(cls, X, alpha, k):
-        return sparsemax(X, dim=-1, k=k)
+        return sparsemax(X, dim=-1, k=k, return_support=True)
 
     @classmethod
     def omega(cls, p_star, alpha):
@@ -95,10 +111,11 @@ class SparsemaxBisectLossFunction(_GenericLossFunction):
 class Entmax15LossFunction(_GenericLossFunction):
 
     n_fwd_args = 1
+    return_support = True
 
     @classmethod
     def project(cls, X, alpha, k=None):
-        return entmax15(X, dim=-1, k=k)
+        return entmax15(X, dim=-1, k=k, return_support=True)
 
     @classmethod
     def omega(cls, p_star, alpha):
@@ -147,7 +164,7 @@ class NormmaxBisectLossFunction(_GenericLossFunction):
         )
 
 
-def sparsemax_loss(X, target, k=None):
+def sparsemax_loss(X, target, k=None, return_support=False):
     """sparsemax loss: sparse alternative to cross-entropy
 
     Computed using a partial sorting strategy.
@@ -172,7 +189,10 @@ def sparsemax_loss(X, target, k=None):
     losses, torch.Tensor, shape=(n_samples,)
         The loss incurred at each sample.
     """
-    return SparsemaxLossFunction.apply(X, target, k)
+    loss, support = SparsemaxLossFunction.apply(X, target, k)
+    if return_support:
+        return loss, support
+    return loss
 
 
 def sparsemax_bisect_loss(X, target, n_iter=50):
@@ -197,10 +217,10 @@ def sparsemax_bisect_loss(X, target, n_iter=50):
     losses, torch.Tensor, shape=(n_samples,)
         The loss incurred at each sample.
     """
-    return SparsemaxBisectLossFunction.apply(X, target, n_iter)
+    return SparsemaxBisectLossFunction.apply(X, target, n_iter)[0]
 
 
-def entmax15_loss(X, target, k=None):
+def entmax15_loss(X, target, k=None, return_support=False):
     """1.5-entmax loss: sparse alternative to cross-entropy
 
     Computed using a partial sorting strategy.
@@ -225,7 +245,10 @@ def entmax15_loss(X, target, k=None):
     losses, torch.Tensor, shape=(n_samples,)
         The loss incurred at each sample.
     """
-    return Entmax15LossFunction.apply(X, target, k)
+    loss, support = Entmax15LossFunction.apply(X, target, k)
+    if return_support:
+        return loss, support
+    return loss
 
 
 def entmax_bisect_loss(X, target, alpha=1.5, n_iter=50):
@@ -257,7 +280,7 @@ def entmax_bisect_loss(X, target, alpha=1.5, n_iter=50):
     losses, torch.Tensor, shape=(n_samples,)
         The loss incurred at each sample.
     """
-    return EntmaxBisectLossFunction.apply(X, target, alpha, n_iter)
+    return EntmaxBisectLossFunction.apply(X, target, alpha, n_iter)[0]
 
 
 def normmax_bisect_loss(X, target, alpha=2, n_iter=50):
@@ -286,27 +309,37 @@ def normmax_bisect_loss(X, target, alpha=2, n_iter=50):
     losses, torch.Tensor, shape=(n_samples,)
         The loss incurred at each sample.
     """
-    return NormmaxBisectLossFunction.apply(X, target, alpha, n_iter)
+    return NormmaxBisectLossFunction.apply(X, target, alpha, n_iter)[0]
 
 
 class SparsemaxBisectLoss(_GenericLoss):
     def __init__(
-        self, n_iter=50, ignore_index=-100, reduction="elementwise_mean"
+        self,
+        n_iter=50,
+        ignore_index=-100,
+        reduction="elementwise_mean",
+        return_support=False
     ):
         self.n_iter = n_iter
-        super(SparsemaxBisectLoss, self).__init__(ignore_index, reduction)
+        super(SparsemaxBisectLoss, self).__init__(ignore_index, reduction, return_support)
 
     def loss(self, X, target):
         return sparsemax_bisect_loss(X, target, self.n_iter)
 
 
 class SparsemaxLoss(_GenericLoss):
-    def __init__(self, k=None, ignore_index=-100, reduction="elementwise_mean"):
+    def __init__(
+        self,
+        k=None,
+        ignore_index=-100,
+        reduction="elementwise_mean",
+        return_support=False
+    ):
         self.k = k
-        super(SparsemaxLoss, self).__init__(ignore_index, reduction)
+        super(SparsemaxLoss, self).__init__(ignore_index, reduction, return_support)
 
     def loss(self, X, target):
-        return sparsemax_loss(X, target, self.k)
+        return sparsemax_loss(X, target, self.k, self.return_support)
 
 
 class EntmaxBisectLoss(_GenericLoss):
@@ -316,10 +349,11 @@ class EntmaxBisectLoss(_GenericLoss):
         n_iter=50,
         ignore_index=-100,
         reduction="elementwise_mean",
+        return_support=False
     ):
         self.alpha = alpha
         self.n_iter = n_iter
-        super(EntmaxBisectLoss, self).__init__(ignore_index, reduction)
+        super(EntmaxBisectLoss, self).__init__(ignore_index, reduction, return_support)
 
     def loss(self, X, target):
         return entmax_bisect_loss(X, target, self.alpha, self.n_iter)
@@ -332,19 +366,20 @@ class NormmaxBisectLoss(_GenericLoss):
         n_iter=50,
         ignore_index=-100,
         reduction="elementwise_mean",
+        return_support=False
     ):
         self.alpha = alpha
         self.n_iter = n_iter
-        super(NormmaxBisectLoss, self).__init__(ignore_index, reduction)
+        super(NormmaxBisectLoss, self).__init__(ignore_index, reduction, return_support)
 
     def loss(self, X, target):
         return normmax_bisect_loss(X, target, self.alpha, self.n_iter)
 
 
 class Entmax15Loss(_GenericLoss):
-    def __init__(self, k=100, ignore_index=-100, reduction="elementwise_mean"):
+    def __init__(self, k=100, ignore_index=-100, reduction="elementwise_mean", return_support=False):
         self.k = k
-        super(Entmax15Loss, self).__init__(ignore_index, reduction)
+        super(Entmax15Loss, self).__init__(ignore_index, reduction, return_support)
 
     def loss(self, X, target):
-        return entmax15_loss(X, target, self.k)
+        return entmax15_loss(X, target, self.k, self.return_support)
