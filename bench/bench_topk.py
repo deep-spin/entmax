@@ -38,11 +38,12 @@ def main(args):
 
     num_threads = torch.get_num_threads()
     device = torch.device("cuda:0") if args.gpu else torch.device("cpu")
-    batch = torch.randn(64, args.v, device=device)
+    batch = torch.randn(args.batch, args.v, device=device)
 
     results = dict()
+    # results["full"] = bench(None, num_threads, batch, n=args.n, ntimeit=20, logmin=-1.5, logmax=2)
     for k in args.k:
-        results[k] = bench(k, num_threads, batch, n=100, ntimeit=5, logmin=-1.5, logmax=2)
+        results[k] = bench(k, num_threads, batch, n=args.n, ntimeit=args.ntimeit, logmin=-1.5, logmax=2)
 
     # the action is all happening at the smaller support sizes. I should focus on them.
 
@@ -56,6 +57,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--batch", type=int, default=128)
+    parser.add_argument("--n", type=int, default=100)
+    parser.add_argument("--ntimeit", type=int, default=20)
     parser.add_argument("--v", type=int, default=32000)
     parser.add_argument("--k", nargs="+", type=int)
     parser.add_argument("--gpu", action="store_true")
