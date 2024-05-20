@@ -192,7 +192,7 @@ class Entmax15Function(Function):
         return dX, None, None, None
 
 
-def sparsemax(X, dim=-1, k=None, return_support=False):
+def sparsemax(X, dim=-1, k=None, return_support_size=False):
     """sparsemax: normalizing sparse transform (a la softmax).
 
     Solves the projection:
@@ -214,7 +214,7 @@ def sparsemax(X, dim=-1, k=None, return_support=False):
         this function is recursively called with a 2*k schedule.
         If `None`, full sorting is performed from the beginning.
 
-    return_support : bool
+    return_support_size : bool
         Whether to return the support size of the result as well as the result
         itself.
 
@@ -226,12 +226,12 @@ def sparsemax(X, dim=-1, k=None, return_support=False):
               where it is 1.
     """
     P, support = SparsemaxFunction.apply(X, dim, k)
-    if return_support:
+    if return_support_size:
         return P, support
     return P
 
 
-def entmax15(X, dim=-1, k=None, return_support=False):
+def entmax15(X, dim=-1, k=None, return_support_size=False):
     """1.5-entmax: normalizing sparse transform (a la softmax).
 
     Solves the optimization problem:
@@ -255,7 +255,7 @@ def entmax15(X, dim=-1, k=None, return_support=False):
         this function is recursively called with a 2*k schedule.
         If `None`, full sorting is performed from the beginning.
 
-    return_support : bool
+    return_support_size : bool
         Whether to return the support size of the result as well as the result
         itself.
 
@@ -268,13 +268,13 @@ def entmax15(X, dim=-1, k=None, return_support=False):
     """
 
     P, support = Entmax15Function.apply(X, dim, k)
-    if return_support:
+    if return_support_size:
         return P, support
     return P
 
 
 class Sparsemax(nn.Module):
-    def __init__(self, dim=-1, k=None, return_support=False):
+    def __init__(self, dim=-1, k=None, return_support_size=False):
         """sparsemax: normalizing sparse transform (a la softmax).
 
         Solves the projection:
@@ -293,21 +293,21 @@ class Sparsemax(nn.Module):
             this function is recursively called with a 2*k schedule.
             If `None`, full sorting is performed from the beginning.
 
-        return_support : bool
+        return_support_size : bool
             Whether to return the support size of the result as well as the
             result itself.
         """
         self.dim = dim
         self.k = k
-        self.return_support = return_support
+        self.return_support_size = return_support_size
         super(Sparsemax, self).__init__()
 
     def forward(self, X):
-        return sparsemax(X, dim=self.dim, k=self.k, return_support=self.return_support)
+        return sparsemax(X, dim=self.dim, k=self.k, return_support_size=self.return_support_size)
 
 
 class Entmax15(nn.Module):
-    def __init__(self, dim=-1, k=None, return_support=False):
+    def __init__(self, dim=-1, k=None, return_support_size=False):
         """1.5-entmax: normalizing sparse transform (a la softmax).
 
         Solves the optimization problem:
@@ -328,14 +328,14 @@ class Entmax15(nn.Module):
             this function is recursively called with a 2*k schedule.
             If `None`, full sorting is performed from the beginning.
 
-        return_support : bool
+        return_support_size : bool
             Whether to return the support size of the result as well as the
             result itself.
         """
         self.dim = dim
         self.k = k
-        self.return_support = return_support
+        self.return_support_size = return_support_size
         super(Entmax15, self).__init__()
 
     def forward(self, X):
-        return entmax15(X, dim=self.dim, k=self.k, return_support=self.return_support)
+        return entmax15(X, dim=self.dim, k=self.k, return_support_size=self.return_support_size)

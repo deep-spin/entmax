@@ -22,7 +22,7 @@ def main(args):
     # results["full"] = bench(None, num_threads, batch, n=args.n, ntimeit=20, logmin=-1.5, logmax=2)
 
     results["no_support"] = bench_topk(args.k, num_threads, batch, n=args.n, ntimeit=args.ntimeit, logmin=-1.5, logmax=2)
-    results["support"] = bench_topk(args.k, num_threads, batch, n=args.n, ntimeit=args.ntimeit, logmin=-1.5, logmax=2, return_support=True)
+    results["support"] = bench_topk(args.k, num_threads, batch, n=args.n, ntimeit=args.ntimeit, logmin=-1.5, logmax=2, return_support_size=True)
 
 
     for k, v in results.items():
