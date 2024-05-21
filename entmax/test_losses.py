@@ -58,7 +58,10 @@ def test_index_ignored(Loss):
     x = torch.randn(20, 6, dtype=torch.float64, requires_grad=True)
     _, y = torch.max(torch.randn_like(x), dim=1)
 
-    loss_ignore = Loss(reduction="sum", ignore_index=y[0])
+    loss_noignore_noreduce = Loss(reduction="none", ignore_index=-100)
+    ix = loss_noignore_noreduce(x, y).argmax()
+
+    loss_ignore = Loss(reduction="sum", ignore_index=y[ix])
     loss_noignore = Loss(reduction="sum", ignore_index=-100)
 
     assert loss_ignore(x, y) < loss_noignore(x, y)
