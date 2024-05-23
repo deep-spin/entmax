@@ -13,6 +13,7 @@ See https://arxiv.org/pdf/1602.02068.
 import torch
 import torch.nn as nn
 from torch.autograd import Function
+from torch.cuda.amp import custom_fwd, custom_bwd
 
 
 def _make_ix_like(X, dim):
@@ -144,6 +145,7 @@ def _entmax_threshold_and_support(X, dim=-1, k=None):
 
 class SparsemaxFunction(Function):
     @classmethod
+    @custom_fwd(cast_inputs=torch.float32)
     def forward(cls, ctx, X, dim=-1, k=None):
         ctx.dim = dim
         max_val, _ = X.max(dim=dim, keepdim=True)
@@ -154,6 +156,7 @@ class SparsemaxFunction(Function):
         return output, supp_size
 
     @classmethod
+    @custom_bwd
     def backward(cls, ctx, grad_output, supp):
         supp_size, output = ctx.saved_tensors
         dim = ctx.dim
@@ -168,6 +171,7 @@ class SparsemaxFunction(Function):
 
 class Entmax15Function(Function):
     @classmethod
+    @custom_fwd(cast_inputs=torch.float32)
     def forward(cls, ctx, X, dim=0, k=None):
         ctx.dim = dim
 
@@ -182,6 +186,7 @@ class Entmax15Function(Function):
         return Y, supp_size
 
     @classmethod
+    @custom_bwd
     def backward(cls, ctx, dY, supp):
         Y, = ctx.saved_tensors
         gppr = Y.sqrt()  # = 1 / g'' (Y)
