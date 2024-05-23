@@ -14,13 +14,13 @@ pool:
 
 strategy:
   matrix:
-    Python35Torch100:
-      python.version: '3.5'
-      pytorch.version: '1.0.0'
-
-    Python37Torch120:
+    Python37Torch190:
       python.version: '3.7'
-      pytorch.version: '1.2.0'
+      pytorch.version: '1.9.0'
+
+    Python38Torch220:
+      python.version: '3.8'
+      pytorch.version: '2.2.0'
 
 steps:
 - task: UsePythonVersion@0
