@@ -84,7 +84,12 @@ def _sparsemax_threshold_and_support(X, dim=-1, k=None):
     return tau, support_size
 
 
-def _compute_tau_star(Xsrt, dim):
+def _compute_tau_star(X, dim=-1, k=None):
+    if k is None or k >= X.shape[dim]:  # do full sort
+        Xsrt, _ = torch.sort(X, dim=dim, descending=True)
+    else:
+        Xsrt, _ = torch.topk(X, k=k, dim=dim)
+
     rho = _make_ix_like(Xsrt, dim)
     mean = Xsrt.cumsum(dim) / rho
     mean_sq = (Xsrt ** 2).cumsum(dim) / rho
@@ -128,17 +133,12 @@ def _entmax_threshold_and_support(X, dim=-1, k=None):
         the number of nonzeros in each vector.
     """
 
-    if k is None or k >= X.shape[dim]:  # do full sort
-        Xsrt, _ = torch.sort(X, dim=dim, descending=True)
-    else:
-        Xsrt, _ = torch.topk(X, k=k, dim=dim)
-
     # there are some savings just in moving the temporary values used to
     # compute tau_star and support_size to a helper method.
     # (will these savings vanish if shifting to an iterative implementation?
     # not sure)
     # except Xsrt can also be moved inside this method.
-    tau_star, support_size = _compute_tau_star(Xsrt, dim)
+    tau_star, support_size = _compute_tau_star(X, dim=dim, k=k)
 
     if k is not None and k < X.shape[dim]:
         unsolved = (support_size == k).squeeze(dim)
