@@ -84,6 +84,24 @@ def _sparsemax_threshold_and_support(X, dim=-1, k=None):
     return tau, support_size
 
 
+def _compute_tau_star(Xsrt, dim):
+    rho = _make_ix_like(Xsrt, dim)
+    mean = Xsrt.cumsum(dim) / rho
+    mean_sq = (Xsrt ** 2).cumsum(dim) / rho
+    ss = rho * (mean_sq - mean ** 2)
+    delta = (1 - ss) / rho
+
+    # NOTE this is not exactly the same as in reference algo
+    # Fortunately it seems the clamped values never wrongly
+    # get selected by tau <= sorted_z. Prove this!
+    delta_nz = torch.clamp(delta, 0)
+    tau = mean - torch.sqrt(delta_nz)
+
+    support_size = (tau <= Xsrt).sum(dim).unsqueeze(dim)
+    tau_star = tau.gather(dim, support_size - 1)
+    return tau_star, support_size
+
+
 def _entmax_threshold_and_support(X, dim=-1, k=None):
     """Core computation for 1.5-entmax: optimal threshold and support size.
 
@@ -115,20 +133,12 @@ def _entmax_threshold_and_support(X, dim=-1, k=None):
     else:
         Xsrt, _ = torch.topk(X, k=k, dim=dim)
 
-    rho = _make_ix_like(Xsrt, dim)
-    mean = Xsrt.cumsum(dim) / rho
-    mean_sq = (Xsrt ** 2).cumsum(dim) / rho
-    ss = rho * (mean_sq - mean ** 2)
-    delta = (1 - ss) / rho
-
-    # NOTE this is not exactly the same as in reference algo
-    # Fortunately it seems the clamped values never wrongly
-    # get selected by tau <= sorted_z. Prove this!
-    delta_nz = torch.clamp(delta, 0)
-    tau = mean - torch.sqrt(delta_nz)
-
-    support_size = (tau <= Xsrt).sum(dim).unsqueeze(dim)
-    tau_star = tau.gather(dim, support_size - 1)
+    # there are some savings just in moving the temporary values used to
+    # compute tau_star and support_size to a helper method.
+    # (will these savings vanish if shifting to an iterative implementation?
+    # not sure)
+    # except Xsrt can also be moved inside this method.
+    tau_star, support_size = _compute_tau_star(Xsrt, dim)
 
     if k is not None and k < X.shape[dim]:
         unsolved = (support_size == k).squeeze(dim)
