@@ -152,6 +152,54 @@ def _entmax_threshold_and_support(X, dim=-1, k=None):
     return tau_star, support_size
 
 
+def _entmax_threshold_and_support_iterative(X, dim=-1, k=None):
+    """Core computation for 1.5-entmax: optimal threshold and support size.
+
+    Parameters
+    ----------
+    X : torch.Tensor
+        The input tensor to compute thresholds over.
+
+    dim : int
+        The dimension along which to apply 1.5-entmax.
+
+    k : int or None
+        number of largest elements to partial-sort over. For optimal
+        performance, should be slightly bigger than the expected number of
+        nonzeros in the solution. If the solution is more than k-sparse,
+        this function is recursively called with a 2*k schedule.
+        If `None`, full sorting is performed from the beginning.
+
+    Returns
+    -------
+    tau : torch.Tensor like `X`, with all but the `dim` dimension intact
+        the threshold value for each vector
+    support_size : torch LongTensor, shape like `tau`
+        the number of nonzeros in each vector.
+    """
+    # unsolved_shape = X.shape[:-1]
+    # unsolved = torch.ones(unsolved_shape, dtype=torch.bool, device=X.device)
+    while True:
+
+        # there are some savings just in moving the temporary values used to
+        # compute tau_star and support_size to a helper method.
+        # (will these savings vanish if shifting to an iterative implementation?
+        # not sure)
+        # except Xsrt can also be moved inside this method.
+        tau_star, support_size = _compute_tau_star(X, dim=dim, k=k)
+
+        if k is None:
+            # full sort
+            return tau_star, support_size
+
+        unsolved = (support_size == k).squeeze(dim)
+        if unsolved.any():
+            # prepare for next iteration
+            k *= 2
+        else:
+            return tau_star, support_size
+
+
 class SparsemaxFunction(Function):
     @classmethod
     def forward(cls, ctx, X, dim=-1, k=None):
@@ -185,7 +233,7 @@ class Entmax15Function(Function):
         X = X - max_val  # same numerical stability trick as for softmax
         X = X / 2  # divide by 2 to solve actual Entmax
 
-        tau_star, supp_size = _entmax_threshold_and_support(X, dim=dim, k=k)
+        tau_star, supp_size = _entmax_threshold_and_support_iterative(X, dim=dim, k=k)
 
         Y = torch.clamp(X - tau_star, min=0) ** 2
         ctx.save_for_backward(Y)
