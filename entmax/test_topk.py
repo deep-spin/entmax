@@ -5,7 +5,7 @@ from torch.autograd import gradcheck
 
 from entmax.activations import (
     _sparsemax_threshold_and_support,
-    _entmax_threshold_and_support,
+    _entmax_threshold_and_support_iterative,
     Sparsemax,
     Entmax15,
 )
@@ -23,8 +23,8 @@ def test_mapping(dim, Map):
 @pytest.mark.parametrize("coef", (0.00001, 0.5, 10000))
 def test_entmax_topk(dim, coef):
     x = coef * torch.randn(3, 4, 5)
-    tau1, supp1 = _entmax_threshold_and_support(x, dim=dim, k=None)
-    tau2, supp2 = _entmax_threshold_and_support(x, dim=dim, k=5)
+    tau1, supp1 = _entmax_threshold_and_support_iterative(x, dim=dim, k=None)
+    tau2, supp2 = _entmax_threshold_and_support_iterative(x, dim=dim, k=5)
 
     assert torch.all(tau1 == tau2)
     assert torch.all(supp1 == supp2)

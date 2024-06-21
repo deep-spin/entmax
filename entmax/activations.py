@@ -177,27 +177,30 @@ def _entmax_threshold_and_support_iterative(X, dim=-1, k=None):
     support_size : torch LongTensor, shape like `tau`
         the number of nonzeros in each vector.
     """
-    # unsolved_shape = X.shape[:-1]
-    # unsolved = torch.ones(unsolved_shape, dtype=torch.bool, device=X.device)
+
+    tau_star, support_size = _compute_tau_star(X, dim=dim, k=k)
+
+    # k is None -> full sort
+    if k is None:
+        return tau_star, support_size
+
+    unsolved = (support_size == k).squeeze(dim)
+    if not unsolved.any():
+        return tau_star, support_size
+
+    k *= 2  # because we've already done it with the initial k value
     while True:
-
-        # there are some savings just in moving the temporary values used to
-        # compute tau_star and support_size to a helper method.
-        # (will these savings vanish if shifting to an iterative implementation?
-        # not sure)
-        # except Xsrt can also be moved inside this method.
-        tau_star, support_size = _compute_tau_star(X, dim=dim, k=k)
-
-        if k is None:
-            # full sort
-            return tau_star, support_size
+        X_ = _roll_last(X, dim)[unsolved]
+        tau_, ss_ = _compute_tau_star(X_, dim=-1, k=k)
+        _roll_last(tau_star, dim)[unsolved] = tau_
+        _roll_last(support_size, dim)[unsolved] = ss_
 
         unsolved = (support_size == k).squeeze(dim)
-        if unsolved.any():
-            # prepare for next iteration
-            k *= 2
-        else:
+
+        if not unsolved.any() or k >= X.shape[dim]:
             return tau_star, support_size
+
+        k *= 2
 
 
 class SparsemaxFunction(Function):
