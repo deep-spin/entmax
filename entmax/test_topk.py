@@ -4,7 +4,7 @@ from torch.autograd import gradcheck
 
 
 from entmax.activations import (
-    _sparsemax_threshold_and_support,
+    _sparsemax_threshold_and_support_iterative,
     _entmax_threshold_and_support_iterative,
     Sparsemax,
     Entmax15,
@@ -36,8 +36,8 @@ def test_entmax_topk(dim, coef):
 def test_sparsemax_topk(dim, coef, k):
 
     x = coef * torch.randn(3, 4, 5)
-    tau1, supp1 = _sparsemax_threshold_and_support(x, dim=dim, k=None)
-    tau2, supp2 = _sparsemax_threshold_and_support(x, dim=dim, k=k)
+    tau1, supp1 = _sparsemax_threshold_and_support_iterative(x, dim=dim, k=None)
+    tau2, supp2 = _sparsemax_threshold_and_support_iterative(x, dim=dim, k=k)
 
     assert torch.all(tau1 == tau2)
     assert torch.all(supp1 == supp2)

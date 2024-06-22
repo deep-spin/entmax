@@ -84,6 +84,75 @@ def _sparsemax_threshold_and_support(X, dim=-1, k=None):
     return tau, support_size
 
 
+def _compute_sparsemax_tau(X, dim=-1, k=None):
+    if k is None or k >= X.shape[dim]:  # do full sort
+        topk, _ = torch.sort(X, dim=dim, descending=True)
+    else:
+        topk, _ = torch.topk(X, k=k, dim=dim)
+
+    topk_cumsum = topk.cumsum(dim) - 1
+    rhos = _make_ix_like(topk, dim)
+    support = rhos * topk > topk_cumsum
+
+    support_size = support.sum(dim=dim).unsqueeze(dim)
+    tau = topk_cumsum.gather(dim, support_size - 1)
+    tau /= support_size.to(X.dtype)
+
+    return tau, support_size
+
+
+# fix this
+def _sparsemax_threshold_and_support_iterative(X, dim=-1, k=None):
+    """Core computation for 1.5-entmax: optimal threshold and support size.
+
+    Parameters
+    ----------
+    X : torch.Tensor
+        The input tensor to compute thresholds over.
+
+    dim : int
+        The dimension along which to apply 1.5-entmax.
+
+    k : int or None
+        number of largest elements to partial-sort over. For optimal
+        performance, should be slightly bigger than the expected number of
+        nonzeros in the solution. If the solution is more than k-sparse,
+        this function is recursively called with a 2*k schedule.
+        If `None`, full sorting is performed from the beginning.
+
+    Returns
+    -------
+    tau : torch.Tensor like `X`, with all but the `dim` dimension intact
+        the threshold value for each vector
+    support_size : torch LongTensor, shape like `tau`
+        the number of nonzeros in each vector.
+    """
+
+    tau_star, support_size = _compute_sparsemax_tau(X, dim=dim, k=k)
+
+    # k is None -> full sort
+    if k is None or k >= X.shape[dim]:
+        return tau_star, support_size
+
+    unsolved = (support_size == k).squeeze(dim)
+    if not unsolved.any():
+        return tau_star, support_size
+
+    k *= 2  # because we've already done it with the initial k value
+    while True:
+        X_ = _roll_last(X, dim)[unsolved]
+        tau_, ss_ = _compute_sparsemax_tau(X_, dim=-1, k=k)
+        _roll_last(tau_star, dim)[unsolved] = tau_
+        _roll_last(support_size, dim)[unsolved] = ss_
+
+        unsolved = (support_size == k).squeeze(dim)
+
+        if not unsolved.any() or k >= X.shape[dim]:
+            return tau_star, support_size
+
+        k *= 2
+
+
 def _compute_tau_star(X, dim=-1, k=None):
     if k is None or k >= X.shape[dim]:  # do full sort
         Xsrt, _ = torch.sort(X, dim=dim, descending=True)
@@ -181,7 +250,7 @@ def _entmax_threshold_and_support_iterative(X, dim=-1, k=None):
     tau_star, support_size = _compute_tau_star(X, dim=dim, k=k)
 
     # k is None -> full sort
-    if k is None:
+    if k is None or k >= X.shape[dim]:
         return tau_star, support_size
 
     unsolved = (support_size == k).squeeze(dim)
@@ -209,7 +278,7 @@ class SparsemaxFunction(Function):
         ctx.dim = dim
         max_val, _ = X.max(dim=dim, keepdim=True)
         X = X - max_val  # same numerical stability trick as softmax
-        tau, supp_size = _sparsemax_threshold_and_support(X, dim=dim, k=k)
+        tau, supp_size = _sparsemax_threshold_and_support_iterative(X, dim=dim, k=k)
         output = torch.clamp(X - tau, min=0)
         ctx.save_for_backward(supp_size, output)
         return output, supp_size
