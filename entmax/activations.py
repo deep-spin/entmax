@@ -99,8 +99,8 @@ def _compute_tau_star(X, dim=-1, k=None):
     # NOTE this is not exactly the same as in reference algo
     # Fortunately it seems the clamped values never wrongly
     # get selected by tau <= sorted_z. Prove this!
-    delta_nz = torch.clamp(delta, 0)
-    tau = mean - torch.sqrt(delta_nz)
+    delta.clamp_(min=0).sqrt_()
+    tau = mean.sub_(delta)
 
     support_size = (tau <= Xsrt).sum(dim).unsqueeze(dim)
     tau_star = tau.gather(dim, support_size - 1)
